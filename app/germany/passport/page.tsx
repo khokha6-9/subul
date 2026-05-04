@@ -52,12 +52,37 @@ export default function Passport() {
                 </div>
 
                 <h2 className="text-2xl font-bold mb-4 text-[#c9a84c]">معلومات الاتصال بالسفارة</h2>
-                <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-10 space-y-2 text-white/70">
-                    <p><span className="text-white">العنوان:</span> Rauchstr. 25, 10787 Berlin</p>
-                    <p><span className="text-white">قسم الجوازات:</span> 03050177433</p>
-                    <p><span className="text-white">واتساب (طوارئ فقط):</span> 004915214577874</p>
-                    <p><span className="text-white">الموقع الرسمي:</span> syrian-embassy.de</p>
-                    <p><span className="text-white">بوابة المعاملات:</span> ecsc-expatriates.sy</p>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-10 space-y-3 text-white/70">
+                    <p>
+                        <span className="text-white">العنوان: </span>
+                        <a href="https://maps.google.com/?q=Rauchstr.+25,+10787+Berlin" target="_blank" className="text-[#c9a84c] hover:underline">
+                            Rauchstr. 25, 10787 Berlin →
+                        </a>
+                    </p>
+                    <p>
+                        <span className="text-white">قسم الجوازات: </span>
+                        <a href="tel:+493050177433" className="text-[#c9a84c] hover:underline">
+                            03050177433
+                        </a>
+                    </p>
+                    <p>
+                        <span className="text-white">واتساب (طوارئ فقط): </span>
+                        <a href="https://wa.me/4915214577874" target="_blank" className="text-[#c9a84c] hover:underline">
+                            004915214577874 →
+                        </a>
+                    </p>
+                    <p>
+                        <span className="text-white">الموقع الرسمي: </span>
+                        <a href="https://syrian-embassy.de" target="_blank" className="text-[#c9a84c] hover:underline">
+                            syrian-embassy.de →
+                        </a>
+                    </p>
+                    <p>
+                        <span className="text-white">بوابة المعاملات: </span>
+                        <a href="https://ecsc-expatriates.sy" target="_blank" className="text-[#c9a84c] hover:underline">
+                            ecsc-expatriates.sy →
+                        </a>
+                    </p>
                     <p><span className="text-white">الدوام:</span> الإثنين-الخميس، 8:30 صباحاً - 4:00 عصراً</p>
                 </div>
 
