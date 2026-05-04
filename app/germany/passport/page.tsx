@@ -20,7 +20,7 @@ export default function Passport() {
 
                 <div className="grid gap-4 mb-10">
                     {[
-                        { step: "1", title: "ادخل لبوابة المغتربين", desc: "افتح موقع ecsc-expatriates.sy وأنشئ حساباً جديداً برقمك الوطني وبريدك الإلكتروني" },
+                        { { step: "1", title: "ادخل لبوابة المغتربين", desc: <>افتح موقع <a href="https://ecsc-expatriates.sy" target="_blank" className="text-[#c9a84c] hover:underline">ecsc-expatriates.sy →</a> وأنشئ حساباً جديداً برقمك الوطني وبريدك الإلكتروني</> },
                         { step: "2", title: "املأ استمارة التجديد", desc: "ادخل بياناتك بالعربية والألمانية بشكل دقيق — أي خطأ يؤخر معاملتك أشهر" },
                         { step: "3", title: "اختر نوع الدور", desc: "الدور العادي 175 يورو (ينتظر 2-3 أشهر) أو المستعجل 345 يورو (نفس اليوم أو أيام قليلة)" },
                         { step: "4", title: "حجز موعد في السفارة", desc: "اختر موعداً متاحاً في السفارة في برلين — Rauchstr. 25, 10787 Berlin" },
