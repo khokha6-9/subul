@@ -1,48 +1,42 @@
-export default function Germany() {
+export default function Home() {
     return (
         <main className="min-h-screen bg-[#0a0a0a] text-white" dir="rtl">
 
-            {/* Header */}
             <header className="flex justify-between items-center px-8 py-5 border-b border-white/10">
-                <a href="/" className="text-2xl font-bold text-[#c9a84c]">سُبُل</a>
-                <span className="text-white/50 text-sm">🇩🇪 ألمانيا</span>
+                <h1 className="text-2xl font-bold text-[#c9a84c]">سُبُل</h1>
+                <button className="bg-[#c9a84c] text-black px-4 py-2 rounded-lg text-sm font-bold">
+                    ابدأ مجاناً
+                </button>
             </header>
 
-            {/* Hero */}
-            <section className="text-center py-16 px-4">
-                <div className="text-6xl mb-4">🇩🇪</div>
-                <h1 className="text-4xl font-bold mb-4">دليل السوري في ألمانيا</h1>
-                <p className="text-white/60 max-w-xl mx-auto">
-                    كل الوثائق التي تحتاجها — خطوة بخطوة، بالعامية السورية
+            <section className="text-center py-24 px-4">
+                <h2 className="text-5xl font-bold mb-6 leading-tight">
+                    طريقك لكل وثيقة<br />
+                    <span className="text-[#c9a84c]">في أي بلد كنت</span>
+                </h2>
+                <p className="text-white/60 text-lg mb-10 max-w-xl mx-auto">
+                    دليلك الذكي للحصول على وثائقك الرسمية — بالعامية السورية، خطوة بخطوة.
                 </p>
             </section>
 
-            {/* Topics */}
-            <section className="px-8 py-10 max-w-3xl mx-auto">
-                <h2 className="text-2xl font-bold mb-6">اختر موضوعك</h2>
-                <div className="grid gap-4">
-                    {[
-                        { icon: "📘", title: "تجديد جواز السفر السوري", desc: "كيف تجدد جوازك من ألمانيا" },
-                        { icon: "👨‍👩‍👧", title: "لمّ شمل الأسرة", desc: "إحضار عائلتك إلى ألمانيا" },
-                        { icon: "🎓", title: "الاعتراف بالشهادات", desc: "توثيق شهادتك الجامعية" },
-                        { icon: "🏠", title: "الجنسية الألمانية", desc: "شروط وخطوات التجنيس" },
-                        { icon: "✈️", title: "العودة إلى سوريا", desc: "ما تحتاج معرفته قبل العودة" },
-                    ].map((item) => (
-                        <div key={item.title}
-                            className="flex items-center gap-4 bg-white/5 border border-white/10 
-              rounded-xl p-5 hover:border-[#c9a84c] cursor-pointer transition-all">
-                            <span className="text-3xl">{item.icon}</span>
-                            <div>
-                                <h3 className="font-bold text-lg">{item.title}</h3>
-                                <p className="text-white/50 text-sm">{item.desc}</p>
-                            </div>
-                            <span className="mr-auto text-[#c9a84c]">←</span>
-                        </div>
-                    ))}
+            <section className="px-8 py-16">
+                <h3 className="text-2xl font-bold text-center mb-10">اختر بلدك</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
+                    <a href="/germany" className="bg-white/5 border border-white/10 rounded-xl p-6 text-center hover:border-[#c9a84c] cursor-pointer">
+                        🇩🇪 ألمانيا
+                    </a>
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center opacity-50">
+                        🇹🇷 تركيا
+                    </div>
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center opacity-50">
+                        🇱🇧 لبنان
+                    </div>
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center opacity-50">
+                        🇯🇴 الأردن
+                    </div>
                 </div>
             </section>
 
         </main>
     );
 }
-
