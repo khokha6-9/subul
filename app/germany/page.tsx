@@ -28,7 +28,7 @@ export default function Germany() {
                 <div className="grid gap-4">
                     {topics.map((item) => (
                         <a href={item.href} key={item.title}
-                            className="flex items-center gap-4 bg-white/5 border border-white/10 
+                            className="card-hover flex items-center gap-4 bg-white/5 border border-white/10 
               rounded-xl p-5 hover:border-[#c9a84c] cursor-pointer transition-all">
                             <span className="text-3xl">{item.icon}</span>
                             <div>
