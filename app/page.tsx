@@ -158,8 +158,8 @@ export default function Home() {
                     {/* Inside Syria */}
                     <div className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm hover:border-[#c9a84c]/30 transition-all">
                         <div className="mb-4">
-                            <svg className="w-12 h-12 text-[#c9a84c]" viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M15,30 L20,25 L30,22 L40,20 L55,18 L70,20 L80,25 L85,30 L88,40 L85,50 L80,55 L75,58 L70,62 L65,70 L60,78 L55,82 L48,85 L40,82 L35,75 L30,70 L25,65 L20,58 L15,50 L12,40 Z" />
+                            <svg className="w-14 h-14 text-[#c9a84c]" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M89.6,184.3l3.6-9.3l9.3-7.8l-1.6-7.8l-7.8-3.6l-3.6-7.8l1.6-13.5l9.3-3.6l13.5-1.6l9.3-3.6l13.5-9.3l21.3-3.6l27.5-13.5l43.5-21.3l54.4-9.3l65.3,1.6l54.4,9.3l43.5,13.5l32.7,21.3l21.3,21.3l13.5,21.3l7.8,21.3l3.6,21.3l-1.6,21.3l-7.8,32.7l-13.5,32.7l-21.3,32.7l-27.5,27.5l-32.7,21.3l-43.5,13.5l-54.4,7.8l-65.3-1.6l-54.4-7.8l-43.5-13.5l-32.7-21.3l-21.3-21.3l-13.5-21.3l-7.8-32.7l-1.6-32.7l3.6-21.3z" />
                             </svg>
                         </div>
                         <h3 className="text-2xl font-bold mb-2">أنا في سوريا</h3>
