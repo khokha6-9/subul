@@ -19,7 +19,21 @@ export default function Home() {
                     دليلك الذكي للحصول على وثائقك الرسمية — بالعامية السورية، خطوة بخطوة.
                 </p>
             </section>
-
+            <section className="px-8 py-16 max-w-3xl mx-auto">
+                <a href="/chat" className="block bg-gradient-to-br from-[#c9a84c]/20 to-[#c9a84c]/5 border-2 border-[#c9a84c]/40 rounded-2xl p-8 text-center hover:border-[#c9a84c] transition-all">
+                    <div className="text-5xl mb-4">🤖</div>
+                    <h2 className="text-3xl font-bold mb-3 text-[#c9a84c]">المساعد الذكي</h2>
+                    <p className="text-white/80 text-lg mb-2">
+                        اسأل أي سؤال — يجيبك فوراً
+                    </p>
+                    <p className="text-white/60 text-sm mb-6">
+                        عن الوثائق، الفيز، المنح الدراسية، الجنسية، العودة، وأي شيء يخص السوريين
+                    </p>
+                    <span className="inline-block bg-[#c9a84c] text-black px-6 py-3 rounded-xl font-bold">
+                        ابدأ المحادثة الآن ←
+                    </span>
+                </a>
+            </section>
             <section className="px-8 py-16">
                 <h3 className="text-2xl font-bold text-center mb-10">اختر بلدك</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
