@@ -157,7 +157,11 @@ export default function Home() {
 
                     {/* Inside Syria */}
                     <div className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm hover:border-[#c9a84c]/30 transition-all">
-                        <div className="text-4xl mb-4">🇸🇾</div>
+                        <div className="mb-4">
+                            <svg className="w-12 h-12 text-[#c9a84c]" viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M15,30 L20,25 L30,22 L40,20 L55,18 L70,20 L80,25 L85,30 L88,40 L85,50 L80,55 L75,58 L70,62 L65,70 L60,78 L55,82 L48,85 L40,82 L35,75 L30,70 L25,65 L20,58 L15,50 L12,40 Z" />
+                            </svg>
+                        </div>
                         <h3 className="text-2xl font-bold mb-2">أنا في سوريا</h3>
                         <p className="text-white/50 text-sm mb-6">للراغبين في السفر، الدراسة، أو الهجرة</p>
 
