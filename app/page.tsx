@@ -4,9 +4,10 @@ export default function Home() {
 
             <header className="flex justify-between items-center px-8 py-5 border-b border-white/10">
                 <h1 className="text-2xl font-bold text-[#c9a84c]">سُبُل</h1>
-                <button className="bg-[#c9a84c] text-black px-4 py-2 rounded-lg text-sm font-bold">
-                    ابدأ مجاناً
-                </button>
+                <a href="/chat" className="bg-[#c9a84c] text-black px-4 py-2 rounded-lg text-sm font-bold hover:opacity-90">
+                    🤖 المساعد الذكي
+                </a>
+                \
             </header>
 
             <section className="text-center py-24 px-4">
@@ -37,6 +38,6 @@ export default function Home() {
                 </div>
             </section>
 
-        </main>
+        </main >
     );
 }
