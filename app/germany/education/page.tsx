@@ -28,7 +28,7 @@ export default function Education() {
                 <div className="bg-white/5 border border-[#c9a84c]/40 rounded-xl p-5 mb-10">
                     <p className="text-[#c9a84c] font-bold mb-2">🌟 خبر سار للسوريين</p>
                     <p className="text-white/80 text-sm leading-relaxed">
-                        معظم الجامعات السورية الحكومية الكبرى مثل دمشق وحلب وتشرين والبعث معترف بها في anabin بتصنيف H+ — أي معادلة كاملة لخريجيها.
+                        معظم الجامعات السورية الحكومية الكبرى مثل دمشق وحلب وتشرين وحمص معترف بها في anabin بتصنيف H+ — أي معادلة كاملة لخريجيها.
                     </p>
                 </div>
 
