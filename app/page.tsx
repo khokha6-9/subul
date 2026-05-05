@@ -32,12 +32,17 @@ export default function Home() {
 
             {/* Header */}
             <header className="relative z-10 flex justify-between items-center px-6 md:px-12 py-5 border-b border-white/5 backdrop-blur-sm">
-                <h1 className="text-2xl font-bold text-[#c9a84c]">سُبُل</h1>
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#c9a84c] to-[#a88838] flex items-center justify-center shadow-lg shadow-[#c9a84c]/20">
+                        <span className="text-black font-bold text-lg">س</span>
+                    </div>
+                    <h1 className="text-2xl font-bold text-[#c9a84c]">سُبُل</h1>
+                </div>
                 <a
                     href="/chat"
-                    className="text-white/70 hover:text-white text-sm transition-colors"
+                    className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#c9a84c]/30 rounded-full px-4 py-2 text-white/80 hover:text-white text-sm transition-all"
                 >
-                    المساعد الذكي ←
+                    ✨ المساعد الذكي
                 </a>
             </header>
 
@@ -61,27 +66,31 @@ export default function Home() {
                 </p>
 
                 {/* Search/Ask Box */}
-                <div className="max-w-2xl mx-auto mb-6">
-                    <div className="relative bg-white/5 border-2 border-white/10 rounded-2xl p-2 backdrop-blur-sm hover:border-[#c9a84c]/40 transition-all">
+                <div className="max-w-2xl mx-auto mb-3">
+                    <div className="relative bg-white/5 border-2 border-white/10 rounded-2xl p-2 backdrop-blur-sm hover:border-[#c9a84c]/40 transition-all shadow-2xl shadow-[#c9a84c]/5">
                         <div className="flex items-center gap-2">
+                            <span className="text-2xl pr-3">✨</span>
                             <input
                                 type="text"
                                 value={question}
                                 onChange={(e) => setQuestion(e.target.value)}
                                 onKeyDown={(e) => e.key === "Enter" && handleAsk()}
-                                placeholder="اسأل أي سؤال... مثلاً: كيف أحصل على فيزا دراسة؟"
-                                className="flex-1 bg-transparent px-4 py-4 text-white placeholder:text-white/40 focus:outline-none text-sm md:text-base"
+                                placeholder="اسأل المساعد الذكي... مثلاً: كيف أحصل على فيزا دراسة؟"
+                                className="flex-1 bg-transparent px-2 py-4 text-white placeholder:text-white/40 focus:outline-none text-sm md:text-base"
                             />
                             <button
                                 onClick={handleAsk}
-                                className="bg-[#c9a84c] text-black px-6 py-4 rounded-xl font-bold hover:opacity-90 transition shrink-0"
+                                className="bg-gradient-to-br from-[#c9a84c] to-[#a88838] text-black px-6 py-4 rounded-xl font-bold hover:opacity-90 transition shrink-0 shadow-lg shadow-[#c9a84c]/30"
                             >
                                 اسأل ←
                             </button>
                         </div>
                     </div>
+                    <p className="text-white/40 text-xs mt-3 flex items-center justify-center gap-2">
+                        <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+                        محادثة مباشرة مع مساعد سُبُل الذكي • مدعوم بـ Claude AI
+                    </p>
                 </div>
-
                 {/* Quick Questions */}
                 <div className="flex flex-wrap gap-2 justify-center max-w-2xl mx-auto">
                     {quickQuestions.map((q, i) => (
