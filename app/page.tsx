@@ -157,9 +157,17 @@ export default function Home() {
 
                     {/* Inside Syria */}
                     <div className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm hover:border-[#c9a84c]/30 transition-all">
-                        <div className="mb-4">
-                            <svg className="w-14 h-14 text-[#c9a84c]" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M89.6,184.3l3.6-9.3l9.3-7.8l-1.6-7.8l-7.8-3.6l-3.6-7.8l1.6-13.5l9.3-3.6l13.5-1.6l9.3-3.6l13.5-9.3l21.3-3.6l27.5-13.5l43.5-21.3l54.4-9.3l65.3,1.6l54.4,9.3l43.5,13.5l32.7,21.3l21.3,21.3l13.5,21.3l7.8,21.3l3.6,21.3l-1.6,21.3l-7.8,32.7l-13.5,32.7l-21.3,32.7l-27.5,27.5l-32.7,21.3l-43.5,13.5l-54.4,7.8l-65.3-1.6l-54.4-7.8l-43.5-13.5l-32.7-21.3l-21.3-21.3l-13.5-21.3l-7.8-32.7l-1.6-32.7l3.6-21.3z" />
+                        <div className="mb-4 inline-block">
+                            <svg
+                                className="w-16 h-16 text-[#c9a84c]"
+                                viewBox="0 0 200 180"
+                                fill="currentColor"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <path d="M 20,90 L 25,75 L 35,65 L 45,55 L 55,45 L 70,38 L 85,32 L 100,28 L 120,25 L 140,28 L 158,35 L 172,45 L 180,58 L 178,72 L 168,80 L 158,82 L 150,88 L 145,95 L 142,105 L 145,115 L 152,125 L 158,135 L 155,145 L 145,152 L 130,155 L 115,152 L 100,148 L 85,142 L 72,135 L 60,128 L 50,118 L 42,108 L 35,98 L 28,90 Z"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                />
                             </svg>
                         </div>
                         <h3 className="text-2xl font-bold mb-2">أنا في سوريا</h3>
