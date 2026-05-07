@@ -1,4 +1,7 @@
-export default function Citizenship() {
+"use client";
+
+import { ProtectedPage } from "@/lib/ProtectedPage";
+function CitizenshipContent() {
     return (
         <main className="min-h-screen bg-[#0a0a0a] text-white" dir="rtl">
 
@@ -472,5 +475,12 @@ export default function Citizenship() {
             </section>
 
         </main>
+    );
+}
+export default function Citizenship() {
+    return (
+        <ProtectedPage>
+            <CitizenshipContent />
+        </ProtectedPage>
     );
 }

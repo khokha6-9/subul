@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/useAuth";
 
 export default function Home() {
     const [question, setQuestion] = useState("");
     const router = useRouter();
+    const { user, signOut } = useAuth();
 
     const handleAsk = () => {
         if (question.trim()) {
@@ -64,13 +66,26 @@ export default function Home() {
                         <p className="text-[10px] md:text-xs text-white/40 mt-0.5">للسوريين، من السوريين</p>
                     </div>
                 </div>
-                <a
-                    href="/chat"
-                    className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#c9a84c]/30 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-white/80 hover:text-white text-xs md:text-sm transition-all flex items-center gap-1.5"
-                >
-                    <span>✨</span>
-                    <span>المساعد</span>
-                </a>
+                {user ? (
+                    <div className="flex items-center gap-2">
+                        <span className="text-white/60 text-xs md:text-sm hidden sm:inline">
+                            {user.email?.split("@")[0]}
+                        </span>
+                        <button
+                            onClick={signOut}
+                            className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-400/30 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-white/80 hover:text-white text-xs md:text-sm transition-all"
+                        >
+                            خروج
+                        </button>
+                    </div>
+                ) : (
+
+                    <a href="/login"
+                        className="bg-gradient-to-br from-[#c9a84c] to-[#a88838] text-black font-bold rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm transition-all hover:opacity-90"
+                    >
+                        تسجيل الدخول
+                    </a>
+                )}
             </header>
 
             {/* Hero Section */}
@@ -240,6 +255,6 @@ export default function Home() {
                 </div>
             </footer>
 
-        </main>
+        </main >
     );
 }

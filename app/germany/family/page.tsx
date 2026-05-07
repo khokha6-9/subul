@@ -1,4 +1,8 @@
-export default function Family() {
+"use client";
+
+import { ProtectedPage } from "@/lib/ProtectedPage";
+
+function FamilyContent() {
     const steps = [
         { step: "1", title: "حفظ المدة خلال 3 أشهر", desc: "هذه أهم خطوة. يجب تقديم إشعار لمّ الشمل خلال 3 أشهر من تاريخ منح اللجوء — هذا يسمى لمّ الشمل المتميز ويعفيك من شروط الدخل والسكن" },
         { step: "2", title: "تقديم الطلب أونلاين", desc: "يقدم الطلب عبر الموقع الرسمي familyreunion-syria.diplo.de — هذا الموقع مخصص للسوريين تحديداً" },
@@ -99,5 +103,12 @@ export default function Family() {
             </section>
 
         </main>
+    );
+}
+export default function Family() {
+    return (
+        <ProtectedPage>
+            <FamilyContent />
+        </ProtectedPage>
     );
 }

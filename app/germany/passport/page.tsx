@@ -1,4 +1,8 @@
-export default function Passport() {
+"use client";
+
+import { ProtectedPage } from "@/lib/ProtectedPage";
+function PassportContent() {
+
     return (
         <main className="min-h-screen bg-[#0a0a0a] text-white" dir="rtl">
 
@@ -104,5 +108,12 @@ export default function Passport() {
             </section>
 
         </main>
+    );
+}
+export default function Passport() {
+    return (
+        <ProtectedPage>
+            <PassportContent />
+        </ProtectedPage>
     );
 }

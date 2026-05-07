@@ -1,4 +1,7 @@
-export default function Return() {
+"use client";
+
+import { ProtectedPage } from "@/lib/ProtectedPage";
+function ReturnContent() {
     return (
         <main className="min-h-screen bg-[#0a0a0a] text-white" dir="rtl">
 
@@ -368,5 +371,12 @@ export default function Return() {
             </section>
 
         </main>
+    );
+}
+export default function Return() {
+    return (
+        <ProtectedPage>
+            <ReturnContent />
+        </ProtectedPage>
     );
 }

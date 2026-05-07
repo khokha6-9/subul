@@ -1,4 +1,7 @@
-export default function Education() {
+"use client";
+
+import { ProtectedPage } from "@/lib/ProtectedPage";
+function EducationContent() {
     const academicSteps = [
         { step: "1", title: "تحقق من شهادتك في anabin", desc: "ادخل قاعدة بيانات anabin.kmk.org وابحث عن جامعتك السورية. إذا كانت بتصنيف H+ فهي معترف بها بالكامل" },
         { step: "2", title: "اختر طريق الاعتراف", desc: "إذا كانت جامعتك H+ تتقدم مباشرة، إذا غير مدرجة تحتاج Statement of Comparability من ZAB" },
@@ -131,5 +134,12 @@ export default function Education() {
             </section>
 
         </main>
+    );
+}
+export default function Education() {
+    return (
+        <ProtectedPage>
+            <EducationContent />
+        </ProtectedPage>
     );
 }

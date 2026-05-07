@@ -1,9 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
 });
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const KNOWLEDGE_BASE = `
 # قاعدة معرفة سُبُل — معلومات حقيقية وموثّقة
@@ -104,6 +110,25 @@ type Message = {
 
 export async function POST(req: NextRequest) {
     try {
+        // التحقق من المستخدم
+        const authHeader = req.headers.get("authorization");
+        if (!authHeader) {
+            return NextResponse.json(
+                { error: "يجب تسجيل الدخول للاستفادة من المساعد الذكي" },
+                { status: 401 }
+            );
+        }
+
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+        if (authError || !user) {
+            return NextResponse.json(
+                { error: "جلسة غير صالحة. يرجى تسجيل الدخول مجدداً" },
+                { status: 401 }
+            );
+        }
+
         const { messages } = await req.json();
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
