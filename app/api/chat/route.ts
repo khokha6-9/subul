@@ -120,7 +120,19 @@ export async function POST(req: NextRequest) {
         }
 
         const token = authHeader.replace("Bearer ", "");
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+        // إنشاء client بصلاحيات المستخدم
+        const userSupabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                global: {
+                    headers: { Authorization: `Bearer ${token}` },
+                },
+            }
+        );
+
+        const { data: { user }, error: authError } = await userSupabase.auth.getUser(token);
 
         if (authError || !user) {
             return NextResponse.json(
@@ -129,6 +141,52 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        // التحقق من الرصيد مع التجديد التلقائي
+        const { data: creditsData, error: creditsError } = await userSupabase
+            .from("users_credits")
+            .select("credits_remaining, total_used, is_plus, last_reset")
+            .eq("user_id", user.id)
+            .single();
+
+        if (creditsError || !creditsData) {
+            return NextResponse.json(
+                { error: "خطأ في جلب الرصيد" },
+                { status: 500 }
+            );
+        }
+
+        // التحقق من التجديد الشهري
+        const lastReset = new Date(creditsData.last_reset);
+        const today = new Date();
+        const daysSinceReset = Math.floor((today.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24));
+
+        let currentCredits = creditsData.credits_remaining;
+
+        // إذا مر 30 يوم أو أكثر ، نجدد الرصيد
+        if (daysSinceReset >= 30) {
+            const newCredits = creditsData.is_plus ? 300 : 15;
+
+            await userSupabase
+                .from("users_credits")
+                .update({
+                    credits_remaining: newCredits,
+                    last_reset: today.toISOString().split('T')[0],
+                })
+                .eq("user_id", user.id);
+
+            currentCredits = newCredits;
+        }
+
+        if (currentCredits <= 0) {
+            return NextResponse.json(
+                {
+                    error: "نفد رصيدك من الرسائل الشهرية",
+                    message: "اشترك في Plus للحصول على 300 رسالة شهرياً بـ 2$ فقط",
+                    showUpgrade: true
+                },
+                { status: 403 }
+            );
+        }
         const { messages } = await req.json();
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -147,7 +205,19 @@ export async function POST(req: NextRequest) {
 
         const reply = response.content[0].type === "text" ? response.content[0].text : "";
 
-        return NextResponse.json({ reply });
+        // خصم رسالة من الرصيد
+        await userSupabase
+            .from("users_credits")
+            .update({
+                credits_remaining: currentCredits - 1,
+                total_used: creditsData.total_used + 1,
+            })
+            .eq("user_id", user.id);
+
+        return NextResponse.json({
+            reply,
+            creditsRemaining: currentCredits - 1
+        });
     } catch (error) {
         console.error("Chat API error:", error);
         return NextResponse.json({ error: "حدث خطأ في المساعد" }, { status: 500 });

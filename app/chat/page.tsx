@@ -14,6 +14,39 @@ export default function Chat() {
     const { user, loading } = useAuth();
     const router = useRouter();
     const [showLoginModal, setShowLoginModal] = useState(false);
+    const [credits, setCredits] = useState<number | null>(null);
+
+    // جلب الرصيد عند تسجيل الدخول
+    useEffect(() => {
+        if (user && !loading) {
+            // تأخير صغير للتأكد من تحميل الـ session
+            setTimeout(() => fetchCredits(), 500);
+        }
+    }, [user, loading]);
+
+    const fetchCredits = async () => {
+        try {
+            console.log("1. بدأ جلب الرصيد");
+            const { data: { session } } = await supabase.auth.getSession();
+            console.log("2. الجلسة :", session ? "موجودة" : "غير موجودة");
+            console.log("3. التوكن :", session?.access_token ? "موجود" : "غير موجود");
+
+            const res = await fetch("/api/credits", {
+                headers: { "Authorization": `Bearer ${session?.access_token}` },
+            });
+            console.log("4. حالة الرد :", res.status);
+
+            const data = await res.json();
+            console.log("5. البيانات :", data);
+
+            if (data.credits !== undefined) {
+                setCredits(data.credits);
+                console.log("6. تم تحديث العداد إلى :", data.credits);
+            }
+        } catch (err) {
+            console.error("خطأ :", err);
+        }
+    };
 
     const [messages, setMessages] = useState<Message[]>([
         {
@@ -63,10 +96,22 @@ export default function Chat() {
 
             if (data.reply) {
                 setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+                // تحديث العداد
+                if (data.creditsRemaining !== undefined) {
+                    setCredits(data.creditsRemaining);
+                }
+            } else if (data.showUpgrade) {
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        role: "assistant",
+                        content: "🎯 نفد رصيدك من الرسائل الشهرية\n\nاشترك في Plus للحصول على :\n✨ 300 رسالة شهرياً\n⚡ ردود أسرع\n🌟 ميزات حصرية\n\nبسعر 2$ فقط شهرياً\n\n( صفحة الاشتراك قريباً )"
+                    },
+                ]);
             } else {
                 setMessages((prev) => [
                     ...prev,
-                    { role: "assistant", content: "عذراً، حدث خطأ. حاول مرة أخرى." },
+                    { role: "assistant", content: data.error || "عذراً، حدث خطأ. حاول مرة أخرى." },
                 ]);
             }
         } catch {
@@ -124,7 +169,15 @@ export default function Chat() {
                     </div>
                     <span className="text-xl font-bold text-[#c9a84c]">سُبُل</span>
                 </a>
-                <span className="text-white/50 text-xs md:text-sm">✨ المساعد الذكي</span>
+                <div className="flex items-center gap-3">
+                    {user && credits !== null && (
+                        <div className="bg-[#c9a84c]/10 border border-[#c9a84c]/30 rounded-full px-3 py-1.5 text-xs">
+                            <span className="text-[#c9a84c] font-bold">{credits}</span>
+                            <span className="text-white/60"> / 15 رسالة</span>
+                        </div>
+                    )}
+                    <span className="text-white/50 text-xs md:text-sm hidden md:inline">✨ المساعد الذكي</span>
+                </div>
             </header>
 
             {/* Messages */}
