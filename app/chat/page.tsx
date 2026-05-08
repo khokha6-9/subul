@@ -16,35 +16,24 @@ export default function Chat() {
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [credits, setCredits] = useState<number | null>(null);
 
-    // جلب الرصيد عند تسجيل الدخول
     useEffect(() => {
         if (user && !loading) {
-            // تأخير صغير للتأكد من تحميل الـ session
             setTimeout(() => fetchCredits(), 500);
         }
     }, [user, loading]);
 
     const fetchCredits = async () => {
         try {
-            console.log("1. بدأ جلب الرصيد");
             const { data: { session } } = await supabase.auth.getSession();
-            console.log("2. الجلسة :", session ? "موجودة" : "غير موجودة");
-            console.log("3. التوكن :", session?.access_token ? "موجود" : "غير موجود");
-
             const res = await fetch("/api/credits", {
                 headers: { "Authorization": `Bearer ${session?.access_token}` },
             });
-            console.log("4. حالة الرد :", res.status);
-
             const data = await res.json();
-            console.log("5. البيانات :", data);
-
             if (data.credits !== undefined) {
                 setCredits(data.credits);
-                console.log("6. تم تحديث العداد إلى :", data.credits);
             }
         } catch (err) {
-            console.error("خطأ :", err);
+            console.error("Error fetching credits:", err);
         }
     };
 
@@ -65,7 +54,6 @@ export default function Chat() {
     const sendMessage = async () => {
         if (!input.trim() || sendingLoading) return;
 
-        // التحقق من تسجيل الدخول
         if (!user) {
             setShowLoginModal(true);
             return;
@@ -96,7 +84,6 @@ export default function Chat() {
 
             if (data.reply) {
                 setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-                // تحديث العداد
                 if (data.creditsRemaining !== undefined) {
                     setCredits(data.creditsRemaining);
                 }
@@ -105,7 +92,7 @@ export default function Chat() {
                     ...prev,
                     {
                         role: "assistant",
-                        content: "🎯 نفد رصيدك من الرسائل الشهرية\n\nاشترك في Plus للحصول على :\n✨ 300 رسالة شهرياً\n⚡ ردود أسرع\n🌟 ميزات حصرية\n\nبسعر 2$ فقط شهرياً\n\n( صفحة الاشتراك قريباً )"
+                        content: "🎯 نفد رصيدك من الرسائل الشهرية\n\nاشترك في Plus للحصول على :\n✨ 300 رسالة شهرياً\n⚡ ردود أسرع\n🌟 ميزات حصرية\n\nبسعر 2$ فقط شهرياً\n\n👈 شاهد الخطط : /pricing"
                     },
                 ]);
             } else {
@@ -161,7 +148,6 @@ export default function Chat() {
     return (
         <main className="min-h-screen bg-[#0a0a0a] text-white flex flex-col" dir="rtl">
 
-            {/* Header */}
             <header className="flex justify-between items-center px-6 md:px-8 py-5 border-b border-white/10 shrink-0">
                 <a href="/" className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#c9a84c] to-[#a88838] flex items-center justify-center">
@@ -169,18 +155,24 @@ export default function Chat() {
                     </div>
                     <span className="text-xl font-bold text-[#c9a84c]">سُبُل</span>
                 </a>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     {user && credits !== null && (
-                        <div className="bg-[#c9a84c]/10 border border-[#c9a84c]/30 rounded-full px-3 py-1.5 text-xs">
-                            <span className="text-[#c9a84c] font-bold">{credits}</span>
-                            <span className="text-white/60"> / 15 رسالة</span>
-                        </div>
+                        <>
+                            <div className="bg-[#c9a84c]/10 border border-[#c9a84c]/30 rounded-full px-3 py-1.5 text-xs">
+                                <span className="text-[#c9a84c] font-bold">{credits}</span>
+                                <span className="text-white/60"> / 15</span>
+                            </div>
+
+                            <a href="/pricing"
+                                className="bg-gradient-to-br from-[#c9a84c] to-[#a88838] text-black font-bold rounded-full px-3 py-1.5 text-xs hover:opacity-90 transition shadow-lg shadow-[#c9a84c]/20"
+                            >
+                                ⚡ ترقية
+                            </a>
+                        </>
                     )}
-                    <span className="text-white/50 text-xs md:text-sm hidden md:inline">✨ المساعد الذكي</span>
                 </div>
             </header>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-6 max-w-3xl mx-auto w-full">
                 <div className="space-y-4">
                     {messages.map((msg, i) => (
@@ -190,8 +182,8 @@ export default function Chat() {
                         >
                             <div
                                 className={`max-w-[85%] rounded-2xl px-5 py-3 ${msg.role === "user"
-                                    ? "bg-[#c9a84c] text-black"
-                                    : "bg-white/5 border border-white/10 text-white"
+                                        ? "bg-[#c9a84c] text-black"
+                                        : "bg-white/5 border border-white/10 text-white"
                                     }`}
                             >
                                 <p className="whitespace-pre-wrap leading-relaxed text-sm">{msg.content}</p>
@@ -232,7 +224,6 @@ export default function Chat() {
                 </div>
             </div>
 
-            {/* Input */}
             <div className="border-t border-white/10 px-4 py-4 shrink-0">
                 <div className="max-w-3xl mx-auto flex gap-2">
                     <input
@@ -259,82 +250,79 @@ export default function Chat() {
                 </p>
             </div>
 
-            {/* Login Modal */}
-            {showLoginModal && (
-                <div
-                    className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center px-4 animate-in fade-in"
-                    onClick={() => setShowLoginModal(false)}
-                >
+            {
+                showLoginModal && (
                     <div
-                        className="relative bg-[#0f0f0f] border border-white/10 rounded-2xl p-8 max-w-md w-full shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center px-4"
+                        onClick={() => setShowLoginModal(false)}
                     >
-
-                        {/* Close */}
-                        <button
-                            onClick={() => setShowLoginModal(false)}
-                            className="absolute top-4 left-4 w-8 h-8 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center text-white/60 hover:text-white transition"
+                        <div
+                            className="relative bg-[#0f0f0f] border border-white/10 rounded-2xl p-8 max-w-md w-full shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
                         >
-                            ✕
-                        </button>
+                            <button
+                                onClick={() => setShowLoginModal(false)}
+                                className="absolute top-4 left-4 w-8 h-8 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center text-white/60 hover:text-white transition"
+                            >
+                                ✕
+                            </button>
 
-                        {/* Content */}
-                        <div className="text-center">
-                            <div className="text-5xl mb-4">✨</div>
+                            <div className="text-center">
+                                <div className="text-5xl mb-4">✨</div>
 
-                            <h2 className="text-2xl font-bold mb-2 text-[#c9a84c]">
-                                المساعد الذكي للمسجّلين
-                            </h2>
-                            <p className="text-white/70 text-sm mb-6 leading-relaxed">
-                                للاستفادة من المساعد الذكي، يرجى تسجيل الدخول مجاناً
-                            </p>
+                                <h2 className="text-2xl font-bold mb-2 text-[#c9a84c]">
+                                    المساعد الذكي للمسجّلين
+                                </h2>
+                                <p className="text-white/70 text-sm mb-6 leading-relaxed">
+                                    للاستفادة من المساعد الذكي، يرجى تسجيل الدخول مجاناً
+                                </p>
 
-                            {/* Benefits */}
-                            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6 text-right">
-                                <ul className="space-y-2 text-white/80 text-sm">
-                                    <li className="flex items-center gap-2">
-                                        <span className="text-[#c9a84c]">✓</span>
-                                        <span>15 رسالة مجانية شهرياً</span>
-                                    </li>
-                                    <li className="flex items-center gap-2">
-                                        <span className="text-[#c9a84c]">✓</span>
-                                        <span>الوصول لكل المحتوى الكامل</span>
-                                    </li>
-                                    <li className="flex items-center gap-2">
-                                        <span className="text-[#c9a84c]">✓</span>
-                                        <span>محادثات محفوظة</span>
-                                    </li>
-                                    <li className="flex items-center gap-2">
-                                        <span className="text-[#c9a84c]">✓</span>
-                                        <span>معلومات موثّقة ومحدّثة</span>
-                                    </li>
-                                </ul>
+                                <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6 text-right">
+                                    <ul className="space-y-2 text-white/80 text-sm">
+                                        <li className="flex items-center gap-2">
+                                            <span className="text-[#c9a84c]">✓</span>
+                                            <span>15 رسالة مجانية شهرياً</span>
+                                        </li>
+                                        <li className="flex items-center gap-2">
+                                            <span className="text-[#c9a84c]">✓</span>
+                                            <span>الوصول لكل المحتوى الكامل</span>
+                                        </li>
+                                        <li className="flex items-center gap-2">
+                                            <span className="text-[#c9a84c]">✓</span>
+                                            <span>محادثات محفوظة</span>
+                                        </li>
+                                        <li className="flex items-center gap-2">
+                                            <span className="text-[#c9a84c]">✓</span>
+                                            <span>معلومات موثّقة ومحدّثة</span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={goToLogin}
+                                        className="w-full bg-gradient-to-br from-[#c9a84c] to-[#a88838] text-black font-bold py-3 rounded-xl hover:opacity-90 transition shadow-lg shadow-[#c9a84c]/30"
+                                    >
+                                        إنشاء حساب مجاني
+                                    </button>
+
+                                    <button
+                                        onClick={goToLogin}
+                                        className="w-full bg-white/5 border border-white/10 hover:border-[#c9a84c]/30 text-white font-bold py-3 rounded-xl transition"
+                                    >
+                                        تسجيل الدخول
+                                    </button>
+                                </div>
+
+                                <p className="text-white/40 text-xs mt-4">
+                                    مجاناً للأبد — بدون بطاقة ائتمان
+                                </p>
                             </div>
-
-                            <div className="space-y-3">
-                                <button
-                                    onClick={goToLogin}
-                                    className="w-full bg-gradient-to-br from-[#c9a84c] to-[#a88838] text-black font-bold py-3 rounded-xl hover:opacity-90 transition shadow-lg shadow-[#c9a84c]/30"
-                                >
-                                    إنشاء حساب مجاني
-                                </button>
-
-                                <button
-                                    onClick={goToLogin}
-                                    className="w-full bg-white/5 border border-white/10 hover:border-[#c9a84c]/30 text-white font-bold py-3 rounded-xl transition"
-                                >
-                                    تسجيل الدخول
-                                </button>
-                            </div>
-
-                            <p className="text-white/40 text-xs mt-4">
-                                مجاناً للأبد — بدون بطاقة ائتمان
-                            </p>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-        </main>
+        </main >
     );
 }
