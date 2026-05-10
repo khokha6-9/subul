@@ -127,9 +127,9 @@ export default function GuideDisplay({
           </Section>
         )}
 
-        {guide.source_url && (
+       {guide.source_url && (
           <div className="mt-8">
-           <a
+            <a
               href={guide.source_url}
               target="_blank"
               rel="noopener noreferrer"
