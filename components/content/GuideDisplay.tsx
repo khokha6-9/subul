@@ -1,7 +1,8 @@
-'use client';
+'use client'
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import type { CSSProperties } from 'react';
 import type { GuideWithCountry } from '@/lib/types/content';
 
 type Props = {
@@ -19,23 +20,39 @@ export default function GuideDisplay({
   const content = guide.content;
   const accent = guide.accent_color || '#c9a84c';
 
+  const buttonStyle: CSSProperties = {
+    backgroundColor: accent,
+    color: '#000',
+  };
+
+  const heroCardStyle: CSSProperties = {
+    borderColor: accent + '4D',
+    background: 'linear-gradient(135deg, ' + accent + '1A, transparent)',
+  };
+
+  const ctaCardStyle: CSSProperties = {
+    borderColor: accent + '4D',
+    background: 'linear-gradient(135deg, ' + accent + '33, transparent)',
+  };
+
+  const accentTextStyle: CSSProperties = {
+    color: accent,
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <div className="max-w-4xl mx-auto px-6 py-12">
         <button
           onClick={() => router.push(backHref)}
           className="text-sm hover:underline mb-8"
-          style={{ color: accent }}
+          style={accentTextStyle}
         >
           {backLabel}
         </button>
 
         <div
           className="rounded-2xl border p-8 md:p-12 mb-8"
-          style={{
-            borderColor: accent + '4D',
-            background: 'linear-gradient(135deg, ' + accent + '1A, transparent)',
-          }}
+          style={heroCardStyle}
         >
           <div className="flex items-start gap-4 mb-6">
             {guide.hero_emoji && (
@@ -46,7 +63,7 @@ export default function GuideDisplay({
                 {guide.title}
               </h1>
               {guide.subtitle && (
-                <p className="text-lg" style={{ color: accent }}>
+                <p className="text-lg" style={accentTextStyle}>
                   {guide.subtitle}
                 </p>
               )}
@@ -102,7 +119,7 @@ export default function GuideDisplay({
                 >
                   <span
                     className="font-bold min-w-[120px]"
-                    style={{ color: accent }}
+                    style={accentTextStyle}
                   >
                     {item.date}
                   </span>
@@ -127,14 +144,14 @@ export default function GuideDisplay({
           </Section>
         )}
 
-       {guide.source_url && (
+        {guide.source_url && (
           <div className="mt-8">
             <a
               href={guide.source_url}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-block px-6 py-3 rounded-xl font-bold transition-opacity hover:opacity-90"
-              style={{ backgroundColor: accent, color: '#000' }}
+              style={buttonStyle}
             >
               {guide.source_name || 'الرابط الرسمي'} ←
             </a>
@@ -154,10 +171,7 @@ export default function GuideDisplay({
 
         <div
           className="rounded-2xl border p-8 mt-12 text-center"
-          style={{
-            borderColor: accent + '4D',
-            background: 'linear-gradient(135deg, ' + accent + '33, transparent)',
-          }}
+          style={ctaCardStyle}
         >
           <h2 className="text-2xl font-bold mb-3">عندك سؤال محدد ؟</h2>
           <p className="text-gray-300 mb-6">
@@ -166,7 +180,7 @@ export default function GuideDisplay({
           <Link
             href="/chat"
             className="inline-block px-6 py-3 rounded-xl font-bold transition-opacity hover:opacity-90"
-            style={{ backgroundColor: accent, color: '#000' }}
+            style={buttonStyle}
           >
             اسأل المساعد الذكي ←
           </Link>
@@ -187,11 +201,15 @@ function Section({
   accent: string;
   children: React.ReactNode;
 }) {
+  const headingStyle: CSSProperties = {
+    color: accent,
+  };
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-6 md:p-8 mb-4">
       <h2
         className="text-xl md:text-2xl font-bold mb-4 flex items-center gap-2"
-        style={{ color: accent }}
+        style={headingStyle}
       >
         <span>{icon}</span>
         <span>{title}</span>
