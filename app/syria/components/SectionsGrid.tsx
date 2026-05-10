@@ -15,7 +15,7 @@ type Section = {
   title: string;
   description: string;
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; color?: string }>;
   available: boolean;
   accent: string;
 };
@@ -149,7 +149,7 @@ function Card({
           >
             <Icon
               className="w-6 h-6"
-              style={{ color: section.available ? section.accent : 'rgba(255,255,255,0.3)' }}
+              color={section.available ? section.accent : 'rgba(255,255,255,0.3)'}
             />
           </div>
 
