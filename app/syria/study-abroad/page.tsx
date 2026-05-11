@@ -1,27 +1,25 @@
-'use client';
+import { getGuides } from '@/lib/content/queries';
+import ScholarshipsList from '@/components/content/ScholarshipsList';
+import { ProtectedPage } from '@/lib/ProtectedPage';
+import type { Metadata } from 'next';
 
-import { useRouter } from 'next/navigation';
+export const metadata: Metadata = {
+  title: 'المنح الدراسية للسوريين 2026 | سُبُل',
+  description:
+    'دليل شامل و موثّق لكل المنح الدراسية المتاحة للسوريين : DAAD , Erasmus , Türkiye Bursları , Chevening , Fulbright و المزيد . معلومات محدّثة و روابط رسمية',
+};
 
-export default function SyriaPage() {
-  const router = useRouter();
+export const revalidate = 60;
+
+export default async function StudyAbroadPage() {
+  const scholarships = await getGuides({
+    category: 'study',
+    audience: 'inside',
+  });
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <section className="px-6 pt-24 pb-16 max-w-6xl mx-auto">
-        <button
-          onClick={() => router.push('/')}
-          className="text-[#c9a84c] mb-8 hover:underline text-sm"
-        >
-          ← الرجوع للرئيسية
-        </button>
-
-        <h1 className="text-4xl md:text-6xl font-bold mb-4">
-          أنا في <span className="text-[#c9a84c]">سوريا</span>
-        </h1>
-        <p className="text-gray-400 text-lg md:text-xl max-w-2xl">
-          دليلك الشامل لكل خيارات المستقبل من سوريا
-        </p>
-      </section>
-    </div>
+    <ProtectedPage>
+      <ScholarshipsList scholarships={scholarships} />
+    </ProtectedPage>
   );
 }
