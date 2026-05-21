@@ -3,19 +3,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
+import Link from "next/link";
+
 
 export default function Pricing() {
     const { user } = useAuth();
     const router = useRouter();
     const [showSoonModal, setShowSoonModal] = useState(false);
 
-    const handleSubscribe = (plan: string) => {
-        if (!user) {
-            router.push("/login");
-            return;
-        }
-        setShowSoonModal(true);
-    };
+   const handleSubscribe = () => {
+    if (!user) {
+        router.push("/login");
+        return;
+    }
+    setShowSoonModal(true);
+};
 
     return (
         <main className="min-h-screen bg-[#0a0a0a] text-white relative overflow-hidden" dir="rtl">
@@ -24,13 +26,13 @@ export default function Pricing() {
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#c9a84c]/[0.08] rounded-full blur-[120px] pointer-events-none" />
 
             <header className="relative z-10 flex justify-between items-center px-6 md:px-12 py-5 border-b border-white/5 backdrop-blur-sm">
-                <a href="/" className="flex items-center gap-3">
+                <Link href="/" className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#c9a84c] to-[#a88838] flex items-center justify-center shadow-lg shadow-[#c9a84c]/20">
                         <span className="text-black font-bold text-lg">س</span>
                     </div>
                     <h1 className="text-xl font-bold text-[#c9a84c]">سُبُل</h1>
-                </a>
-                <a href="/" className="text-white/60 hover:text-white text-sm transition">← الرئيسية</a>
+                </Link>
+                <Link href="/" className="text-white/60 hover:text-white text-sm transition">← الرئيسية</Link>
             </header>
 
             <section className="relative z-10 px-6 pt-16 pb-8 max-w-4xl mx-auto text-center">
@@ -135,7 +137,7 @@ export default function Pricing() {
                         </ul>
 
                         <button
-                            onClick={() => handleSubscribe("plus")}
+                           onClick={handleSubscribe}
                             className="w-full bg-gradient-to-br from-[#c9a84c] to-[#a88838] text-black font-bold py-3 rounded-xl hover:opacity-90 transition shadow-lg shadow-[#c9a84c]/30"
                         >
                             اشترك في Plus
@@ -177,7 +179,7 @@ export default function Pricing() {
                         </ul>
 
                         <button
-                            onClick={() => handleSubscribe("pro")}
+                            onClick={handleSubscribe}
                             className="w-full bg-white/5 border border-white/10 hover:border-[#c9a84c]/30 text-white font-bold py-3 rounded-xl transition"
                         >
                             اشترك في Pro

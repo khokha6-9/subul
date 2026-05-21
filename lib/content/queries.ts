@@ -3,7 +3,7 @@
 // ==================================================
 
 import { supabase } from '@/lib/supabase';
-import type { Guide, GuideWithCountry, Country } from '@/lib/types/content';
+import type { GuideWithCountry, Country } from '@/lib/types/content';
 
 /**
  * جلب دليل واحد عبر slug

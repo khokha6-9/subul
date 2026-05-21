@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import Link from "next/link";
 
 export default function Login() {
     const [email, setEmail] = useState("");
@@ -70,12 +71,12 @@ export default function Login() {
 
                 {/* Logo */}
                 <div className="text-center mb-8">
-                    <a href="/" className="inline-flex items-center gap-3 mb-4">
+                  <Link href="/" className="inline-flex items-center gap-3 mb-4">
                         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#c9a84c] to-[#a88838] flex items-center justify-center shadow-lg shadow-[#c9a84c]/20">
                             <span className="text-black font-bold text-2xl">س</span>
                         </div>
                         <h1 className="text-3xl font-bold text-[#c9a84c]">سُبُل</h1>
-                    </a>
+                   </Link>
                     <p className="text-white/50 text-sm">للسوريين، من السوريين</p>
                 </div>
 

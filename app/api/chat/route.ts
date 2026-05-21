@@ -1,107 +1,37 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { searchKnowledgeBase, buildContextFromResults } from "./search";
 
 const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const SYSTEM_PROMPT_BASE = `أنت "مستشار سُبُل" — خبير قانوني وإداري سوري متخصص في شؤون السوريين حول العالم.
 
-const KNOWLEDGE_BASE = `
-# قاعدة معرفة سُبُل — معلومات حقيقية وموثّقة
-
-## 🇩🇪 ألمانيا — تجديد الجواز السوري
-- استأنفت السفارة السورية في برلين إصدار الجوازات منذ 12 مارس 2025
-- البوابة الإلكترونية: ecsc-expatriates.sy
-- الموقع: Rauchstr. 25, 10787 Berlin
-- قسم الجوازات: 03050177433
-- واتساب الطوارئ: 004915214577874
-- الموقع الرسمي: syrian-embassy.de
-- الدور العادي: 175 يورو (ينتظر 2-3 أشهر)
-- الدور المستعجل: 345 يورو (نفس اليوم أو أيام قليلة)
-- المطلوب: جواز قديم + 5 صور + بطاقة الإقامة + الاستمارة + الرسوم نقداً
-- جديد فبراير 2026: افتُتحت قنصلية بون مجدداً للمقيمين في غرب ألمانيا
-
-## 🇩🇪 ألمانيا — لمّ شمل الأسرة
-- ⚠️ تم تعليق لمّ الشمل للحاصلين على الحماية الفرعية لمدة عامين منذ 24 يوليو 2025
-- يحق للاجئين المعترف بهم (وفق اتفاقية جنيف): لمّ شمل بدون قيود مالية
-- يحق لحاملي الإقامة الدائمة: بشروط مالية وسكنية
-- لا يحق لحاملي Duldung
-- الموقع الرسمي للسوريين: familyreunion-syria.diplo.de
-- مدة الانتظار: 10 أسابيع للموعد + 3-12 شهر للمعالجة
-- الرسوم: 75 يورو للبالغ، 37.50 يورو للطفل
-- خطوة ذهبية: تقديم إشعار لمّ الشمل خلال 3 أشهر من منح اللجوء = "لمّ الشمل المتميز" (يعفي من شروط الدخل والسكن)
-
-## 🇩🇪 ألمانيا — الاعتراف بالشهادات
-- الجامعات السورية الكبرى (دمشق، حلب، تشرين، حمص) معترف بها H+ في anabin
-- قاعدة anabin.kmk.org للتحقق من شهادتك
-- ZAB في بون يصدر Statement of Comparability للشهادات الجامعية
-- التكلفة: حوالي 200 يورو
-- المدة: 3-6 أشهر
-- المطلوب: ترجمة محلفة للشهادة + كشف العلامات + شهادة الثانوية
-- المهن المنظمة (تتطلب اعتراف إجباري): الأطباء، المحامون، المعلمون، المهندسون، الممرضون
-- موقع رسمي: anerkennung-in-deutschland.de
-
-## 🇩🇪 ألمانيا — الجنسية الألمانية
-- قانون StaRModG الجديد (27 يونيو 2024) سهّل التجنيس
-- المدة: 5 سنوات إقامة (3 سنوات للاندماج المتميز)
-- ازدواج الجنسية مسموح — تحتفظ بالسورية مع الألمانية
-- في 2024: السوريون احتلوا المركز الأول بـ 75,000+ متجنس
-- اختبار الجنسية: 33 سؤال، تنجح بـ 17 صحيحة، الرسوم 25 يورو
-- بنك الأسئلة: 310 سؤال (300 عام + 10 لكل ولاية)
-- موقع التحضير الرسمي: oet.bamf.de
-- شهادة B1 إلزامية من معهد معتمد (Goethe، TELC، ÖSD)
-- اختبار B1: 100-200 يورو، النتيجة بعد 4-6 أسابيع
-- رسوم التجنيس: 255 يورو للبالغ، 51 لكل طفل
-- جواز السفر الألماني: 60 يورو
-- الإجمالي التقريبي: 800-2400 يورو
-
-## 🇩🇪 ألمانيا — العودة إلى سوريا
-- بعد سقوط النظام في ديسمبر 2024 فُتح باب العودة
-- برنامج REAG/GARP: تذاكر مغطاة + 200 يورو بدل سفر للبالغ + 1000 يورو منحة بدء حياة
-- الأطفال: 100 يورو بدل + 500 يورو منحة
-- دعم صحي يصل إلى 2000 يورو للحالات الخاصة
-- عائلة من 4 يمكن أن تحصل على ما يصل إلى 4000 يورو
-- يُقدم الطلب عبر مراكز استشارات معتمدة (DRK، Caritas)
-- يجب التخلي عن الإقامة الألمانية للحصول على المنحة (الاستثناء: حاملي الإقامة الدائمة يمكنهم العودة لألمانيا خلال سنة)
-- المنظمة الدولية للهجرة: returningfromgermany.de
-- منصة UNHCR: syriaishome.unhcr.org
-- إيميل IOM: returnsfromgermany@iom.int
-`;
-
-const SYSTEM_PROMPT = `أنت مساعد ذكي اسمه "سُبُل" مخصص لخدمة السوريين أينما كانوا — في الداخل أو الخارج.
-
-جمهورك يشمل:
+جمهورك:
 - السوريون في دول الشتات (ألمانيا، تركيا، لبنان، الأردن وغيرها)
 - السوريون في الداخل الذين يخططون للسفر أو الهجرة
-- الطلاب والخريجون الذين يبحثون عن منح دراسية أو فرص خارج سوريا
-- الباحثون عن عمل في أوروبا والخليج
+- الطلاب والخريجون الباحثون عن منح أو فرص خارج سوريا
 
-تخصصاتك الرئيسية:
+تخصصاتك:
 1. الوثائق الرسمية: جواز السفر، الإقامات، الجنسية، لمّ الشمل
-2. الفيز والتأشيرات: فيز الدراسة، العمل، السياحة، اللجوء
-3. المنح الدراسية: DAAD، Erasmus، Chevening، Fulbright وغيرها
+2. الفيز والتأشيرات: الدراسة، العمل، السياحة، اللجوء
+3. المنح الدراسية: DAAD، Erasmus، Chevening، Fulbright
 4. الهجرة والعودة: قوانين الهجرة، برامج العودة الطوعية
-5. الاعتراف بالشهادات: في ألمانيا والدول الأخرى
-6. سوق العمل: فيز العمل، Blue Card الأوروبية، فرص الخليج
+5. الاعتراف بالشهادات في ألمانيا والدول الأخرى
+6. سوق العمل: فيز العمل، Blue Card، فرص الخليج
 
 قواعدك:
-- اعتمد دائماً على قاعدة المعرفة المرفقة أولاً قبل أي معلومة عامة
+- اعتمد على المعلومات المرفقة أولاً قبل أي معلومة عامة
 - إجاباتك دقيقة وعملية ومختصرة
-- اذكر الروابط الرسمية والأسعار من قاعدة المعرفة بدقة
-- إذا لم تجد الإجابة في قاعدة المعرفة، اعترف بذلك واقترح الجهة الرسمية المختصة
-- اقترح دائماً التحقق من المصادر الرسمية لأن القوانين والإجراءات تتغير
-- كن متعاطفاً ومحترماً — تتعامل مع شباب وعائلات في ظروف صعبة
-- شجّع على الأمل والإنجاز ولا تثبّط المستخدم
-- استخدم اللغة العربية البسيطة (الفصحى أو العامية السورية حسب السياق)
-- نسّق إجاباتك بنقاط واضحة عند الحاجة
-
-قاعدة المعرفة المتاحة لك:
-${KNOWLEDGE_BASE}`;
+- اذكر الروابط الرسمية والأسعار بدقة عند توفرها
+- إذا لم تجد الإجابة في المعلومات المرفقة، اعترف بذلك واقترح الجهة الرسمية
+- اقترح دائماً التحقق من المصادر الرسمية لأن القوانين تتغير
+- كن متعاطفاً ومحترماً
+- استخدم العربية البسيطة الواضحة
+- نسّق إجاباتك بنقاط عند الحاجة
+- اختم كل إجابة بـ: "نحن في سُبُل، طريقك للبداية الجديدة 🌟"`;
 
 type Message = {
     role: "user" | "assistant";
@@ -110,7 +40,6 @@ type Message = {
 
 export async function POST(req: NextRequest) {
     try {
-        // التحقق من المستخدم
         const authHeader = req.headers.get("authorization");
         if (!authHeader) {
             return NextResponse.json(
@@ -121,7 +50,6 @@ export async function POST(req: NextRequest) {
 
         const token = authHeader.replace("Bearer ", "");
 
-        // إنشاء client بصلاحيات المستخدم
         const userSupabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -158,22 +86,21 @@ export async function POST(req: NextRequest) {
         // التحقق من التجديد الشهري
         const lastReset = new Date(creditsData.last_reset);
         const today = new Date();
-        const daysSinceReset = Math.floor((today.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24));
+        const daysSinceReset = Math.floor(
+            (today.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24)
+        );
 
         let currentCredits = creditsData.credits_remaining;
 
-        // إذا مر 30 يوم أو أكثر ، نجدد الرصيد
         if (daysSinceReset >= 30) {
             const newCredits = creditsData.is_plus ? 300 : 15;
-
             await userSupabase
                 .from("users_credits")
                 .update({
                     credits_remaining: newCredits,
-                    last_reset: today.toISOString().split('T')[0],
+                    last_reset: today.toISOString().split("T")[0],
                 })
                 .eq("user_id", user.id);
-
             currentCredits = newCredits;
         }
 
@@ -182,28 +109,64 @@ export async function POST(req: NextRequest) {
                 {
                     error: "نفد رصيدك من الرسائل الشهرية",
                     message: "اشترك في Plus للحصول على 300 رسالة شهرياً بـ 2$ فقط",
-                    showUpgrade: true
+                    showUpgrade: true,
                 },
                 { status: 403 }
             );
         }
-        const { messages } = await req.json();
+
+        const { messages, conversationId } = await req.json();
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return NextResponse.json({ error: "الرسائل فارغة" }, { status: 400 });
         }
 
+        const userMessage = messages[messages.length - 1];
+
+        // البحث في knowledge_base
+        const searchResults = await searchKnowledgeBase(
+            userMessage.content,
+            userSupabase
+        );
+
+        const context = buildContextFromResults(searchResults);
+
+        // بناء الـ system prompt مع السياق
+        const systemPrompt = context
+            ? `${SYSTEM_PROMPT_BASE}\n\n══════════════════════════════════════\nمعلومات ذات صلة من قاعدة المعرفة:\n══════════════════════════════════════\n${context}`
+            : `${SYSTEM_PROMPT_BASE}\n\n(لا توجد معلومات محددة في قاعدة المعرفة لهذا السؤال — أجب من معرفتك العامة وأشر إلى الجهات الرسمية)`;
+
+        // حفظ رسالة المستخدم
+        if (conversationId) {
+            await userSupabase.from("messages").insert({
+                conversation_id: conversationId,
+                role: "user",
+                content: userMessage.content,
+            });
+        }
+
+        // استدعاء Claude
         const response = await anthropic.messages.create({
             model: "claude-haiku-4-5-20251001",
             max_tokens: 1500,
-            system: SYSTEM_PROMPT,
+            system: systemPrompt,
             messages: messages.map((m: Message) => ({
                 role: m.role,
                 content: m.content,
             })),
         });
 
-        const reply = response.content[0].type === "text" ? response.content[0].text : "";
+        const reply =
+            response.content[0].type === "text" ? response.content[0].text : "";
+
+        // حفظ رد المساعد
+        if (conversationId) {
+            await userSupabase.from("messages").insert({
+                conversation_id: conversationId,
+                role: "assistant",
+                content: reply,
+            });
+        }
 
         // خصم رسالة من الرصيد
         await userSupabase
@@ -216,7 +179,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             reply,
-            creditsRemaining: currentCredits - 1
+            creditsRemaining: currentCredits - 1,
         });
     } catch (error) {
         console.error("Chat API error:", error);

@@ -117,22 +117,28 @@ export default function Home() {
                             <span>المساعد الذكي</span>
                         </div>
 
-                        <div className="flex items-center gap-1 md:gap-2">
-                            <input
-                                type="text"
-                                value={question}
-                                onChange={(e) => setQuestion(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && handleAsk()}
-                                placeholder="اكتب سؤالك هنا..."
-                                className="flex-1 bg-transparent px-3 md:px-4 py-3.5 md:py-4 text-white placeholder:text-white/40 focus:outline-none text-sm md:text-base"
-                            />
-                            <button
-                                onClick={handleAsk}
-                                className="bg-gradient-to-br from-[#c9a84c] to-[#a88838] text-black px-4 md:px-6 py-3 md:py-4 rounded-xl font-bold hover:opacity-90 transition shrink-0 shadow-lg shadow-[#c9a84c]/30 text-sm md:text-base"
-                            >
-                                اسأل ←
-                            </button>
-                        </div>
+                       <div className="flex items-center gap-1 md:gap-2">
+    <input
+        id="chat-input"
+        name="message"
+        type="text"
+        value={question}
+        onChange={(e) => setQuestion(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleAsk()}
+        placeholder="اكتب سؤالك هنا..."
+        autoComplete="off"
+        className="flex-1 bg-black/20 backdrop-blur-md px-3 md:px-4 py-3.5 md:py-4 text-white placeholder:text-white/60 focus:outline-none focus:bg-black/30 focus:ring-2 focus:ring-[#c9a84c]/50 text-sm md:text-base border border-white/10 rounded-xl transition-all"
+    />
+    <button
+        onClick={handleAsk}
+        disabled={!question.trim()}
+        className="bg-gradient-to-br from-[#c9a84c] to-[#a88838] text-black px-4 md:px-6 py-3 md:py-4 rounded-xl font-bold hover:opacity-90 hover:scale-105 transition-all shrink-0 shadow-lg shadow-[#c9a84c]/30 text-sm md:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+        اسأل ←
+    </button>
+</div>
+
+
                     </div>
 
                     <p className="text-white/40 text-[11px] md:text-xs mt-3 flex items-center justify-center gap-2">

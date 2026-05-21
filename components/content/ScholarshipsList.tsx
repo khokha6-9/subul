@@ -216,14 +216,19 @@ function FiltersSection({
     <section className="px-6 py-8 max-w-6xl mx-auto border-t border-white/5">
       <div className="relative mb-6">
         <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="ابحث عن منحة , دولة , أو تخصص ..."
-          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder-white/30 focus:outline-none focus:border-[#c9a84c]/50 transition-colors"
-        />
-        {searchQuery && (
+       <input
+  id="search-input"           // ✅ ضفت id
+  name="search"               // ✅ ضفت name
+  type="text"
+  value={searchQuery}
+  onChange={(e) => onSearchChange(e.target.value)}
+  placeholder="ابحث عن منحة , دولة , أو تخصص ..."
+  autoComplete="off"          // ✅ ضفت autocomplete
+  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder-white/50 focus:outline-none focus:border-[#c9a84c]/50 transition-colors"
+  // ✅ غيّرت placeholder-white/30 → placeholder-white/50 (أوضح)
+/>
+{searchQuery && (
+
           <button
             onClick={() => onSearchChange('')}
             className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30 hover:text-white/60"

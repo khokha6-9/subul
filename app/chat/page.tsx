@@ -1,221 +1,349 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/useAuth";
 import { supabase } from "@/lib/supabase";
+import { Send, Loader2, Trash2, Download, Copy, Check } from "lucide-react";
+import Link from "next/link";
 
-type Message = {
+interface Message {
     role: "user" | "assistant";
     content: string;
-};
+    timestamp: Date;
+}
 
-export default function Chat() {
+export default function ChatPage() {
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [input, setInput] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [credits, setCredits] = useState<number>(0);
+    const [error, setError] = useState<string | null>(null);
+    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+    const [isTyping, setIsTyping] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
+
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+
     const { user, loading } = useAuth();
-    const router = useRouter();
-    const [showLoginModal, setShowLoginModal] = useState(false);
-    const [credits, setCredits] = useState<number | null>(null);
 
-    useEffect(() => {
-        if (user && !loading) {
-            setTimeout(() => fetchCredits(), 500);
-        }
-    }, [user, loading]);
-
-    const fetchCredits = async () => {
+    const fetchCredits = useCallback(async () => {
+        if (!user) return;
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const res = await fetch("/api/credits", {
-                headers: { "Authorization": `Bearer ${session?.access_token}` },
-            });
-            const data = await res.json();
-            if (data.credits !== undefined) {
+            const response = await fetch(`/api/credits?userId=${user.id}`);
+            if (response.ok) {
+                const data = await response.json();
                 setCredits(data.credits);
             }
         } catch (err) {
             console.error("Error fetching credits:", err);
         }
-    };
+    }, [user]);
 
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            role: "assistant",
-            content: "مرحباً! أنا سُبُل، مساعدك الذكي. اسألني عن الوثائق، الفيز، المنح الدراسية، أو أي شيء يخص السوريين في الداخل والخارج. كيف أقدر أساعدك؟",
-        },
-    ]);
-    const [input, setInput] = useState("");
-    const [sendingLoading, setSendingLoading] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
+    const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, []);
+
+    const handleCopy = useCallback(async (text: string, index: number) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedIndex(index);
+            setTimeout(() => setCopiedIndex(null), 2000);
+        } catch (err) {
+            console.error("فشل النسخ:", err);
+        }
+    }, []);
+
+    const handleClearChat = useCallback(() => {
+        if (window.confirm("هل أنت متأكد من حذف جميع الرسائل؟")) {
+            setMessages([]);
+            localStorage.removeItem("chatMessages");
+        }
+    }, []);
+
+    const handleExportChat = useCallback(() => {
+        const chatText = messages
+            .map((msg) => `${msg.role === "user" ? "أنت" : "المساعد"}: ${msg.content}`)
+            .join("\n\n");
+        const blob = new Blob([chatText], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `chat-${new Date().toISOString()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }, [messages]);
 
-    const sendMessage = async () => {
-        if (!input.trim() || sendingLoading) return;
+    const handleSend = useCallback(async () => {
+        if (!input.trim() || isLoading || !user) return;
 
-        if (!user) {
-            setShowLoginModal(true);
-            return;
-        }
+        const userMessage: Message = {
+            role: "user",
+            content: input.trim(),
+            timestamp: new Date(),
+        };
 
-        const userMessage: Message = { role: "user", content: input.trim() };
-        const newMessages = [...messages, userMessage];
-
+        setMessages((prev) => [...prev, userMessage]);
         setInput("");
-        setMessages(newMessages);
-        setSendingLoading(true);
+        setIsLoading(true);
+        setIsTyping(true);
+        setError(null);
 
         try {
+            // جلب الـ token من Supabase
             const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
 
-            const res = await fetch("/api/chat", {
+            if (!token) {
+                throw new Error("انتهت جلستك، يرجى تسجيل الدخول مجدداً");
+            }
+
+            const apiMessages = messages
+                .concat(userMessage)
+                .map((m) => ({ role: m.role, content: m.content }));
+
+            const response = await fetch("/api/chat", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${session?.access_token}`,
+                    Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({
-                    messages: newMessages.filter(m => m.role !== "assistant" || newMessages.indexOf(m) !== 0)
-                }),
+                body: JSON.stringify({ messages: apiMessages }),
             });
 
-            const data = await res.json();
+            const data = await response.json();
 
-            if (data.reply) {
-                setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-                if (data.creditsRemaining !== undefined) {
-                    setCredits(data.creditsRemaining);
-                }
-            } else if (data.showUpgrade) {
-                setMessages((prev) => [
-                    ...prev,
-                    {
-                        role: "assistant",
-                        content: "🎯 نفد رصيدك من الرسائل الشهرية\n\nاشترك في Plus للحصول على :\n✨ 300 رسالة شهرياً\n⚡ ردود أسرع\n🌟 ميزات حصرية\n\nبسعر 2$ فقط شهرياً\n\n👈 شاهد الخطط : /pricing"
-                    },
-                ]);
-            } else {
-                setMessages((prev) => [
-                    ...prev,
-                    { role: "assistant", content: data.error || "عذراً، حدث خطأ. حاول مرة أخرى." },
-                ]);
+            if (!response.ok) {
+                throw new Error(data.error || "حدث خطأ في الإرسال");
             }
-        } catch {
-            setMessages((prev) => [
-                ...prev,
-                { role: "assistant", content: "عذراً، فشل الاتصال. تأكد من إنترنتك." },
-            ]);
+
+            const assistantMessage: Message = {
+                role: "assistant",
+                content: data.reply || "لم أستطع الحصول على رد",
+                timestamp: new Date(),
+            };
+
+            setMessages((prev) => [...prev, assistantMessage]);
+            if (data.creditsRemaining !== undefined) {
+                setCredits(data.creditsRemaining);
+            }
+        } catch (err: unknown) {
+            const errorMsg =
+                err instanceof Error ? err.message : "حدث خطأ، حاول مرة أخرى";
+            const errorMessage: Message = {
+                role: "assistant",
+                content: errorMsg,
+                timestamp: new Date(),
+            };
+            setMessages((prev) => [...prev, errorMessage]);
+            setError(errorMsg);
         } finally {
-            setSendingLoading(false);
+            setIsLoading(false);
+            setIsTyping(false);
+            inputRef.current?.focus();
         }
-    };
+    }, [input, isLoading, user, messages]);
 
-    const quickQuestions = [
-        "كيف أجدد جواز سفري السوري في ألمانيا؟",
-        "ما شروط الجنسية الألمانية الجديدة؟",
-        "كيف أحضّر لاختبار B1؟",
-        "ما برامج العودة لسوريا؟",
-    ];
+    const handleKeyPress = useCallback(
+        (e: React.KeyboardEvent<HTMLInputElement>) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+            }
+        },
+        [handleSend]
+    );
 
-    const askQuick = (q: string) => {
-        if (!user) {
-            setInput(q);
-            setShowLoginModal(true);
-            return;
+    useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 0);
+    return () => clearTimeout(timer);
+}, []);
+
+    useEffect(() => {
+        if (isMounted) {
+            const savedMessages = localStorage.getItem("chatMessages");
+            if (savedMessages) {
+                try {
+                    const parsed = JSON.parse(savedMessages);
+                    const messagesWithDates = parsed.map((msg: Message) => ({
+                        ...msg,
+                        timestamp: new Date(msg.timestamp),
+                    }));
+                    setTimeout(() => setMessages(messagesWithDates), 0);
+                } catch (err) {
+                    console.error("فشل تحميل الرسائل:", err);
+                }
+            }
         }
-        setInput(q);
+    }, [isMounted]);
+
+    useEffect(() => {
+        if (isMounted && messages.length > 0) {
+            localStorage.setItem("chatMessages", JSON.stringify(messages));
+        }
+    }, [messages, isMounted]);
+
+    useEffect(() => {
+    if (user) {
+        const timer = setTimeout(() => fetchCredits(), 0);
+        return () => clearTimeout(timer);
+    }
+}, [user, fetchCredits]);
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages, scrollToBottom]);
+
+    useEffect(() => {
+        if (isMounted) inputRef.current?.focus();
+    }, [isMounted]);
+
+    const formatTime = (date: Date) => {
+        return new Date(date).toLocaleTimeString("ar-SA", {
+            hour: "2-digit",
+            minute: "2-digit",
+        });
     };
 
-    const goToLogin = () => {
-        sessionStorage.setItem("redirectAfterLogin", "/chat");
-        router.push("/login");
-    };
-
-    if (loading) {
+    if (!isMounted || loading) {
         return (
-            <main className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center" dir="rtl">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#c9a84c] to-[#a88838] flex items-center justify-center shadow-lg shadow-[#c9a84c]/20 animate-pulse">
-                        <span className="text-black font-bold text-xl">س</span>
-                    </div>
-                    <p className="text-white/60 text-sm">جاري التحميل...</p>
+            <div className="flex items-center justify-center h-screen bg-gray-50">
+                <div className="text-center">
+                    <Loader2 className="w-12 h-12 animate-spin text-blue-500 mx-auto mb-4" />
+                    <p className="text-gray-600">جاري التحميل...</p>
                 </div>
-            </main>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-gray-50">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                        يجب تسجيل الدخول أولاً
+                    </h2>
+                    <Link
+                       href="/login"
+                        className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
+                    >
+                        تسجيل الدخول
+                    </Link>
+                </div>
+            </div>
         );
     }
 
     return (
-        <main className="min-h-screen bg-[#0a0a0a] text-white flex flex-col" dir="rtl">
-
-            <header className="flex justify-between items-center px-6 md:px-8 py-5 border-b border-white/10 shrink-0">
-                <a href="/" className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#c9a84c] to-[#a88838] flex items-center justify-center">
-                        <span className="text-black font-bold">س</span>
+       <div className="flex flex-col h-screen bg-[#0a0a0a] text-white">
+            {/* Header */}
+           <div className="bg-[#0f0f0f] border-b border-white/10 p-4">
+                <div className="max-w-6xl mx-auto flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                       <h1 className="text-2xl font-bold text-[#c9a84c]">سُبُل الذكي ✨</h1>
+                        {error && (
+                            <span className="text-sm text-red-500 bg-red-50 px-3 py-1 rounded">
+                                ⚠️ {error}
+                            </span>
+                        )}
                     </div>
-                    <span className="text-xl font-bold text-[#c9a84c]">سُبُل</span>
-                </a>
-                <div className="flex items-center gap-2">
-                    {user && credits !== null && (
-                        <>
-                            <div className="bg-[#c9a84c]/10 border border-[#c9a84c]/30 rounded-full px-3 py-1.5 text-xs">
-                                <span className="text-[#c9a84c] font-bold">{credits}</span>
-                                <span className="text-white/60"> / 15</span>
-                            </div>
-
-                            <a href="/pricing"
-                                className="bg-gradient-to-br from-[#c9a84c] to-[#a88838] text-black font-bold rounded-full px-3 py-1.5 text-xs hover:opacity-90 transition shadow-lg shadow-[#c9a84c]/20"
-                            >
-                                ⚡ ترقية
-                            </a>
-                        </>
-                    )}
+                    <div className="flex items-center gap-3">
+                       <div className="text-sm bg-[#c9a84c]/10 text-[#c9a84c] border border-[#c9a84c]/20 px-4 py-2 rounded-full font-medium">
+    الرصيد: {credits} ⭐
+</div>
+                        {messages.length > 0 && (
+                            <>
+                                <button
+                                    onClick={handleExportChat}
+                                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                    title="تصدير المحادثة"
+                                    type="button"
+                                >
+                                    <Download className="w-5 h-5" />
+                                </button>
+                                <button
+                                    onClick={handleClearChat}
+                                    className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                                    title="مسح المحادثة"
+                                    type="button"
+                                >
+                                    <Trash2 className="w-5 h-5" />
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
-            </header>
+            </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-6 max-w-3xl mx-auto w-full">
-                <div className="space-y-4">
-                    {messages.map((msg, i) => (
+            {/* Messages */}
+           <div className="flex-1 overflow-y-auto p-4 bg-[#0a0a0a]">
+                <div className="max-w-4xl mx-auto space-y-4">
+                    {messages.length === 0 && (
+                        <div className="text-center text-gray-500 mt-20">
+                            <div className="text-6xl mb-4">👋</div>
+                            <h2 className="text-2xl font-bold mb-2">مرحباً بك!</h2>
+                            <p className="text-gray-400">ابدأ محادثة جديدة الآن</p>
+                        </div>
+                    )}
+
+                    {messages.map((msg, index) => (
                         <div
-                            key={i}
-                            className={`flex ${msg.role === "user" ? "justify-start" : "justify-end"}`}
+                            key={`${msg.timestamp}-${index}`}
+                            className={`flex ${
+                                msg.role === "user" ? "justify-end" : "justify-start"
+                            }`}
                         >
                             <div
-                                className={`max-w-[85%] rounded-2xl px-5 py-3 ${msg.role === "user"
-                                        ? "bg-[#c9a84c] text-black"
-                                        : "bg-white/5 border border-white/10 text-white"
-                                    }`}
+                                className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+    msg.role === "user"
+        ? "bg-gradient-to-br from-[#c9a84c] to-[#a88838] text-black"
+        : "bg-white/5 border border-white/10 text-white"
+}`}
                             >
-                                <p className="whitespace-pre-wrap leading-relaxed text-sm">{msg.content}</p>
+                                <div className="whitespace-pre-wrap break-words">
+                                    {msg.content}
+                                </div>
+                                <div className="flex items-center justify-between mt-2 gap-2">
+                                    <span
+                                        className={`text-xs ${
+    msg.role === "user"
+        ? "text-black/60"
+        : "text-white/40"
+}`}
+                                    >
+                                        {formatTime(msg.timestamp)}
+                                    </span>
+                                    <button
+                                        onClick={() => handleCopy(msg.content, index)}
+                                        className={`p-1 rounded transition ${
+    msg.role === "user"
+        ? "text-black/60 hover:text-black"
+        : "text-white/40 hover:text-white"
+}`}
+                                        title="نسخ"
+                                        type="button"
+                                    >
+                                        {copiedIndex === index ? (
+                                            <Check className="w-4 h-4" />
+                                        ) : (
+                                            <Copy className="w-4 h-4" />
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}
 
-                    {sendingLoading && (
-                        <div className="flex justify-end">
-                            <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-3">
+                    {isTyping && (
+                        <div className="flex justify-start">
+                            <div className="bg-white rounded-2xl px-4 py-3 shadow-md border">
                                 <div className="flex gap-1">
-                                    <span className="w-2 h-2 bg-[#c9a84c] rounded-full animate-bounce"></span>
-                                    <span className="w-2 h-2 bg-[#c9a84c] rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></span>
-                                    <span className="w-2 h-2 bg-[#c9a84c] rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></span>
+                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.1s]"></span>
+                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
                                 </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {messages.length === 1 && (
-                        <div className="pt-4">
-                            <p className="text-white/50 text-xs mb-3 text-center">أسئلة سريعة:</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                {quickQuestions.map((q, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => askQuick(q)}
-                                        className="bg-white/5 border border-white/10 hover:border-[#c9a84c] rounded-xl px-4 py-3 text-sm text-white/80 text-right transition-all"
-                                    >
-                                        {q}
-                                    </button>
-                                ))}
                             </div>
                         </div>
                     )}
@@ -224,105 +352,37 @@ export default function Chat() {
                 </div>
             </div>
 
-            <div className="border-t border-white/10 px-4 py-4 shrink-0">
-                <div className="max-w-3xl mx-auto flex gap-2">
+            {/* Input */}
+           <div className="bg-[#0f0f0f] border-t border-white/10 p-4">
+                <div className="flex gap-3 max-w-4xl mx-auto">
                     <input
+                        ref={inputRef}
+                        id="chat-input"
+                        name="message"
                         type="text"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                        placeholder={user ? "اكتب سؤالك هنا..." : "اكتب سؤالك... (يتطلب تسجيل دخول)"}
-                        disabled={sendingLoading}
-                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#c9a84c] disabled:opacity-50"
+                        onKeyPress={handleKeyPress}
+                        placeholder="اكتب رسالتك هنا..."
+                        autoComplete="off"
+                        disabled={isLoading}
+                       className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition"
                     />
                     <button
-                        onClick={sendMessage}
-                        disabled={sendingLoading || !input.trim()}
-                        className="bg-[#c9a84c] text-black px-6 py-3 rounded-xl font-bold disabled:opacity-50 hover:opacity-90 transition"
+                        onClick={handleSend}
+                        disabled={isLoading || !input.trim()}
+                        type="button"
+                       className="bg-gradient-to-br from-[#c9a84c] to-[#a88838] text-black font-bold px-6 py-3 rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition"
                     >
-                        {user ? "إرسال" : "🔐 إرسال"}
+                        {isLoading ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                            <Send className="w-5 h-5" />
+                        )}
+                        <span className="font-medium">إرسال</span>
                     </button>
                 </div>
-                <p className="text-white/30 text-xs text-center mt-3">
-                    {user
-                        ? "المعلومات للإرشاد فقط — تحقق دائماً من المصادر الرسمية"
-                        : "✨ سجّل دخول للحصول على 15 رسالة مجانية شهرياً"}
-                </p>
             </div>
-
-            {
-                showLoginModal && (
-                    <div
-                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center px-4"
-                        onClick={() => setShowLoginModal(false)}
-                    >
-                        <div
-                            className="relative bg-[#0f0f0f] border border-white/10 rounded-2xl p-8 max-w-md w-full shadow-2xl"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <button
-                                onClick={() => setShowLoginModal(false)}
-                                className="absolute top-4 left-4 w-8 h-8 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center text-white/60 hover:text-white transition"
-                            >
-                                ✕
-                            </button>
-
-                            <div className="text-center">
-                                <div className="text-5xl mb-4">✨</div>
-
-                                <h2 className="text-2xl font-bold mb-2 text-[#c9a84c]">
-                                    المساعد الذكي للمسجّلين
-                                </h2>
-                                <p className="text-white/70 text-sm mb-6 leading-relaxed">
-                                    للاستفادة من المساعد الذكي، يرجى تسجيل الدخول مجاناً
-                                </p>
-
-                                <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6 text-right">
-                                    <ul className="space-y-2 text-white/80 text-sm">
-                                        <li className="flex items-center gap-2">
-                                            <span className="text-[#c9a84c]">✓</span>
-                                            <span>15 رسالة مجانية شهرياً</span>
-                                        </li>
-                                        <li className="flex items-center gap-2">
-                                            <span className="text-[#c9a84c]">✓</span>
-                                            <span>الوصول لكل المحتوى الكامل</span>
-                                        </li>
-                                        <li className="flex items-center gap-2">
-                                            <span className="text-[#c9a84c]">✓</span>
-                                            <span>محادثات محفوظة</span>
-                                        </li>
-                                        <li className="flex items-center gap-2">
-                                            <span className="text-[#c9a84c]">✓</span>
-                                            <span>معلومات موثّقة ومحدّثة</span>
-                                        </li>
-                                    </ul>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <button
-                                        onClick={goToLogin}
-                                        className="w-full bg-gradient-to-br from-[#c9a84c] to-[#a88838] text-black font-bold py-3 rounded-xl hover:opacity-90 transition shadow-lg shadow-[#c9a84c]/30"
-                                    >
-                                        إنشاء حساب مجاني
-                                    </button>
-
-                                    <button
-                                        onClick={goToLogin}
-                                        className="w-full bg-white/5 border border-white/10 hover:border-[#c9a84c]/30 text-white font-bold py-3 rounded-xl transition"
-                                    >
-                                        تسجيل الدخول
-                                    </button>
-                                </div>
-
-                                <p className="text-white/40 text-xs mt-4">
-                                    مجاناً للأبد — بدون بطاقة ائتمان
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-        </main >
+        </div>
     );
 }
