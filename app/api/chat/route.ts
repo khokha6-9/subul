@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
         // التحقق من الرصيد مع التجديد التلقائي
         const { data: creditsData, error: creditsError } = await userSupabase
             .from("users_credits")
-            .select("credits_remaining, total_used, is_plus, last_reset")
+           .select("credits_remaining, total_used, is_plus, plan, last_reset")
             .eq("user_id", user.id)
             .single();
 
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
         let currentCredits = creditsData.credits_remaining;
 
         if (daysSinceReset >= 30) {
-            const newCredits = creditsData.is_plus ? 300 : 15;
+          const newCredits = creditsData.plan === 'pro' ? 1200 : creditsData.plan === 'plus' ? 400 : creditsData.plan === 'starter' ? 100 : 15;
             await userSupabase
                 .from("users_credits")
                 .update({

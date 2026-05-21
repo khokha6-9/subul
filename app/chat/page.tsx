@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/useAuth";
 import { supabase } from "@/lib/supabase";
 import { Send, Loader2, Trash2, Download, Copy, Check } from "lucide-react";
 import Link from "next/link";
-
+import ReactMarkdown from "react-markdown";
 interface Message {
     role: "user" | "assistant";
     content: string;
@@ -280,13 +280,20 @@ export default function ChatPage() {
             {/* Messages */}
            <div className="flex-1 overflow-y-auto p-4 bg-[#0a0a0a]">
                 <div className="max-w-4xl mx-auto space-y-4">
-                    {messages.length === 0 && (
-                        <div className="text-center text-gray-500 mt-20">
-                            <div className="text-6xl mb-4">👋</div>
-                            <h2 className="text-2xl font-bold mb-2">مرحباً بك!</h2>
-                            <p className="text-gray-400">ابدأ محادثة جديدة الآن</p>
-                        </div>
-                    )}
+                   {messages.length === 0 && (
+    <div className="flex justify-start">
+        <div className="max-w-[75%] rounded-2xl px-4 py-3 bg-white/5 border border-white/10 text-white">
+            <div className="prose prose-invert max-w-none text-sm">
+                <ReactMarkdown>
+                    {`مرحباً! أنا **مستشار سُبُل** ✨\n\nيمكنني مساعدتك في:\n- 📄 تجديد الجواز والوثائق الرسمية\n- ✈️ الفيز والتأشيرات\n- 🎓 المنح الدراسية\n- 🏠 لمّ الشمل والإقامة\n- 📜 الاعتراف بالشهادات\n- 💼 فرص العمل في أوروبا\n\nكيف يمكنني مساعدتك اليوم؟`}
+                </ReactMarkdown>
+            </div>
+            <div className="flex items-center justify-between mt-2 gap-2">
+                <span className="text-xs text-white/40">مستشار سُبُل</span>
+            </div>
+        </div>
+    </div>
+)}
 
                     {messages.map((msg, index) => (
                         <div
@@ -302,9 +309,11 @@ export default function ChatPage() {
         : "bg-white/5 border border-white/10 text-white"
 }`}
                             >
-                                <div className="whitespace-pre-wrap break-words">
-                                    {msg.content}
-                                </div>
+                                <div className="prose prose-invert max-w-none text-sm break-words">
+    <ReactMarkdown>
+        {msg.content}
+    </ReactMarkdown>
+</div>
                                 <div className="flex items-center justify-between mt-2 gap-2">
                                     <span
                                         className={`text-xs ${
