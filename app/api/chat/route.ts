@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
         // التحقق من الرصيد مع التجديد التلقائي
         const { data: creditsData, error: creditsError } = await userSupabase
             .from("users_credits")
-           .select("credits_remaining, total_used, is_plus, plan, last_reset")
+            .select("credits_remaining, total_used, is_plus, plan, last_reset")
             .eq("user_id", user.id)
             .single();
 
@@ -93,7 +93,11 @@ export async function POST(req: NextRequest) {
         let currentCredits = creditsData.credits_remaining;
 
         if (daysSinceReset >= 30) {
-          const newCredits = creditsData.plan === 'pro' ? 1200 : creditsData.plan === 'plus' ? 400 : creditsData.plan === 'starter' ? 100 : 15;
+            const newCredits =
+                creditsData.plan === "pro" ? 1200 :
+                creditsData.plan === "plus" ? 400 :
+                creditsData.plan === "starter" ? 100 : 15;
+
             await userSupabase
                 .from("users_credits")
                 .update({
@@ -108,20 +112,65 @@ export async function POST(req: NextRequest) {
             return NextResponse.json(
                 {
                     error: "نفد رصيدك من الرسائل الشهرية",
-                    message: "اشترك في Plus للحصول على 300 رسالة شهرياً بـ 2$ فقط",
+                    message: "اشترك في Plus للحصول على 400 رسالة شهرياً بـ 3$ فقط",
                     showUpgrade: true,
                 },
                 { status: 403 }
             );
         }
 
-        const { messages, conversationId } = await req.json();
+        // التغيير الأول - تغيير اسم المتغير
+        const { messages, conversationId: existingConversationId } = await req.json();
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
-            return NextResponse.json({ error: "الرسائل فارغة" }, { status: 400 });
+            return NextResponse.json(
+                { error: "الرسائل فارغة" },
+                { status: 400 }
+            );
         }
 
         const userMessage = messages[messages.length - 1];
+
+        // التغيير الثاني - إنشاء محادثة جديدة أو استخدام الموجودة
+        let conversationId = existingConversationId;
+
+        if (!conversationId) {
+            const title = userMessage.content.slice(0, 60);
+
+            const { data: newConv, error: convError } = await userSupabase
+                .from("conversations")
+                .insert({
+                    user_id: user.id,
+                    title,
+                })
+                .select("id")
+                .single();
+
+            if (convError || !newConv) {
+                return NextResponse.json(
+                    { error: "خطأ في إنشاء المحادثة" },
+                    { status: 500 }
+                );
+            }
+
+            conversationId = newConv.id;
+        }
+
+        // جلب آخر 10 رسائل من هذه المحادثة كـ context
+        let contextMessages: Message[] = [];
+
+        if (conversationId) {
+            const { data: prevMessages } = await userSupabase
+                .from("messages")
+                .select("role, content")
+                .eq("conversation_id", conversationId)
+                .order("created_at", { ascending: false })
+                .limit(10);
+
+            if (prevMessages && prevMessages.length > 0) {
+                contextMessages = prevMessages.reverse() as Message[];
+            }
+        }
 
         // البحث في knowledge_base
         const searchResults = await searchKnowledgeBase(
@@ -137,36 +186,40 @@ export async function POST(req: NextRequest) {
             : `${SYSTEM_PROMPT_BASE}\n\n(لا توجد معلومات محددة في قاعدة المعرفة لهذا السؤال — أجب من معرفتك العامة وأشر إلى الجهات الرسمية)`;
 
         // حفظ رسالة المستخدم
-        if (conversationId) {
-            await userSupabase.from("messages").insert({
-                conversation_id: conversationId,
-                role: "user",
-                content: userMessage.content,
-            });
-        }
+        await userSupabase.from("messages").insert({
+            conversation_id: conversationId,
+            role: "user",
+            content: userMessage.content,
+        });
+
+        // التغيير الثالث - دمج السياق السابق مع الرسالة الحالية
+        const allMessages = contextMessages.length > 0
+            ? [
+                ...contextMessages,
+                { role: userMessage.role, content: userMessage.content },
+              ]
+            : messages.map((m: Message) => ({
+                role: m.role,
+                content: m.content,
+              }));
 
         // استدعاء Claude
         const response = await anthropic.messages.create({
             model: "claude-haiku-4-5-20251001",
             max_tokens: 1500,
             system: systemPrompt,
-            messages: messages.map((m: Message) => ({
-                role: m.role,
-                content: m.content,
-            })),
+            messages: allMessages,
         });
 
         const reply =
             response.content[0].type === "text" ? response.content[0].text : "";
 
         // حفظ رد المساعد
-        if (conversationId) {
-            await userSupabase.from("messages").insert({
-                conversation_id: conversationId,
-                role: "assistant",
-                content: reply,
-            });
-        }
+        await userSupabase.from("messages").insert({
+            conversation_id: conversationId,
+            role: "assistant",
+            content: reply,
+        });
 
         // خصم رسالة من الرصيد
         await userSupabase
@@ -177,12 +230,18 @@ export async function POST(req: NextRequest) {
             })
             .eq("user_id", user.id);
 
+        // التغيير الرابع - إرجاع conversationId
         return NextResponse.json({
             reply,
             creditsRemaining: currentCredits - 1,
+            conversationId,
         });
+
     } catch (error) {
         console.error("Chat API error:", error);
-        return NextResponse.json({ error: "حدث خطأ في المساعد" }, { status: 500 });
+        return NextResponse.json(
+            { error: "حدث خطأ في المساعد" },
+            { status: 500 }
+        );
     }
 }
