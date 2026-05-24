@@ -155,6 +155,35 @@ export async function POST(req: NextRequest) {
 
             conversationId = newConv.id;
         }
+        // أرشفة المحادثات القديمة إذا تجاوز الحد
+const limits: Record<string, number> = {
+    free: 20,
+    starter: 50,
+    plus: 200,
+    pro: Infinity,
+};
+
+const plan = creditsData.plan ?? "free";
+const limit = limits[plan] ?? 20;
+
+if (limit !== Infinity) {
+    const { data: allConvs } = await userSupabase
+        .from("conversations")
+        .select("id, created_at")
+        .eq("user_id", user.id)
+        .eq("is_archived", false)
+        .order("last_message_at", { ascending: true, nullsFirst: true });
+
+    if (allConvs && allConvs.length > limit) {
+        const toArchive = allConvs.slice(0, allConvs.length - limit);
+        const idsToArchive = toArchive.map((c) => c.id);
+
+        await userSupabase
+            .from("conversations")
+            .update({ is_archived: true })
+            .in("id", idsToArchive);
+    }
+}
 
         // جلب آخر 10 رسائل من هذه المحادثة كـ context
         let contextMessages: Message[] = [];
