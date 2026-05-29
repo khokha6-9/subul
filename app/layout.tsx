@@ -1,10 +1,9 @@
-import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'تطبيق الدردشة',
-  description: 'تطبيق دردشة بالذكاء الاصطناعي',
+  title: 'سُبُل',
+  description: 'للسوريين، من السوريين',
 };
 
 export default function RootLayout({
@@ -13,10 +12,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider>
-      <html lang="ar" dir="rtl">
-        <body>{children}</body>
-      </html>
-    </ClerkProvider>
+    <html lang="ar" dir="rtl">
+      <body>{children}</body>
+    </html>
   );
 }
