@@ -1,5 +1,5 @@
 "use client";
-
+import { Suspense } from "react";
 import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
@@ -15,7 +15,7 @@ const USDT_WALLET = "TQeXxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 type Method = "usdt" | "sham_cash" | null;
 type Step = "method" | "form" | "success";
 
-export default function PaymentPage() {
+function PaymentContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -389,5 +389,16 @@ async function handleUsdtPayment() {
 
       </div>
     </main>
+  );
+}
+export default function PaymentPage() {
+  return (
+    <Suspense fallback={
+      <main style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "14px" }}>جارٍ التحميل...</p>
+      </main>
+    }>
+      <PaymentContent />
+    </Suspense>
   );
 }
