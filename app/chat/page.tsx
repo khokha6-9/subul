@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
-
+import OnboardingModal from "@/components/OnboardingModal";
 interface Message {
     role: "user" | "assistant";
     content: string;
@@ -34,6 +34,7 @@ export default function ChatPage() {
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [isTyping, setIsTyping] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
+    const [showOnboarding, setShowOnboarding] = useState(false);
 
     // الشريط الجانبي
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -88,6 +89,17 @@ export default function ChatPage() {
             setLoadingConversations(false);
         }
     }, [user]);
+    const checkOnboarding = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+        .from("profiles")
+        .select("onboarding_status")
+        .eq("id", user.id)
+        .single();
+    if (data?.onboarding_status === "pending") {
+        setShowOnboarding(true);
+    }
+}, [user]);
 
     // فتح محادثة قديمة
     const openConversation = useCallback(async (conv: Conversation) => {
@@ -287,15 +299,16 @@ export default function ChatPage() {
         return () => clearTimeout(timer);
     }, []);
 
-    useEffect(() => {
-        if (user) {
-            const timer = setTimeout(() => {
-                fetchCredits();
-                fetchConversations();
-            }, 0);
-            return () => clearTimeout(timer);
-        }
-    }, [user, fetchCredits, fetchConversations]);
+   useEffect(() => {
+    if (user) {
+        const timer = setTimeout(() => {
+            fetchCredits();
+            fetchConversations();
+            checkOnboarding();
+        }, 0);
+        return () => clearTimeout(timer);
+    }
+}, [user, fetchCredits, fetchConversations, checkOnboarding]);
 
     useEffect(() => {
         scrollToBottom();
@@ -336,6 +349,12 @@ export default function ChatPage() {
 
     return (
         <div className="flex h-screen bg-[#0a0a0a] text-white overflow-hidden">
+            {showOnboarding && user && (
+    <OnboardingModal
+        userId={user.id}
+        onComplete={() => setShowOnboarding(false)}
+    />
+)}
 
             {/* الشريط الجانبي */}
             <div className={`
