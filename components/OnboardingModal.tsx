@@ -155,9 +155,19 @@ export default function OnboardingModal({ userId, onComplete }: Props) {
     padding: "8px",
   };
 
-  return (
-    <div style={overlayStyle}>
-      <div style={cardStyle}>
+ return (
+    <div 
+        style={overlayStyle}
+        onClick={handleSkip}
+        onKeyDown={(e) => e.key === 'Escape' && handleSkip()}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+    >
+        <div 
+          style={cardStyle}
+          onClick={(e) => e.stopPropagation()}
+        >
 
         {/* Progress */}
         <div style={progressStyle}>
