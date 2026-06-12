@@ -1,3 +1,4 @@
+"use client";
 import Link from "next/link";
 
 export default function AdminLayout({
@@ -5,63 +6,71 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const navLinks = [
+    { href: "/admin", label: "الرئيسية" },
+    { href: "/admin/analytics", label: "التحليلات" },
+    { href: "/admin/knowledge", label: "إدارة المعرفة" },
+    { href: "/admin/users", label: "المستخدمون" },
+    { href: "/admin/payments", label: "المدفوعات" },
+  ];
+
   return (
     <div style={{
       display: "flex" as const,
       minHeight: "100vh",
       fontFamily: "sans-serif",
       direction: "rtl" as const,
+      backgroundColor: "#0a0a0a",
     }}>
       <aside style={{
-        width: "240px",
-        borderLeft: "0.5px solid #e5e5e5",
-        padding: "24px 16px",
+        width: "220px",
+        borderLeft: "1px solid #1a1a1a",
+        padding: "24px 12px",
         display: "flex" as const,
         flexDirection: "column" as const,
-        gap: "8px",
-        backgroundColor: "#fafafa",
+        gap: "4px",
+        backgroundColor: "#0f0f0f",
+        flexShrink: 0,
       }}>
         <p style={{
           fontSize: "16px",
-          fontWeight: 500,
-          marginBottom: "16px",
+          fontWeight: 600,
+          color: "#c9a84c",
+          marginBottom: "20px",
           paddingBottom: "16px",
-          borderBottom: "0.5px solid #e5e5e5",
+          borderBottom: "1px solid #1a1a1a",
+          paddingRight: "12px",
+          letterSpacing: "1px",
         }}>
-          لوحة سُبُل
+          سُبُل — أدمن
         </p>
-        <Link href="/admin" style={{
-          fontSize: "14px",
-          color: "#333",
-          textDecoration: "none",
-          padding: "8px 12px",
-          borderRadius: "6px",
-        }}>
-          الرئيسية
-        </Link>
-        <Link href="/admin/knowledge" style={{
-          fontSize: "14px",
-          color: "#333",
-          textDecoration: "none",
-          padding: "8px 12px",
-          borderRadius: "6px",
-        }}>
-          إدارة المعرفة
-        </Link>
-        <Link href="/admin/users" style={{
-          fontSize: "14px",
-          color: "#333",
-          textDecoration: "none",
-          padding: "8px 12px",
-          borderRadius: "6px",
-        }}>
-          المستخدمون
-        </Link>
+        {navLinks.map((link) => (
+          <Link key={link.href} href={link.href} style={{
+            fontSize: "13px",
+            color: "#aaaaaa",
+            textDecoration: "none",
+            padding: "9px 12px",
+            borderRadius: "8px",
+            transition: "all 0.15s",
+          }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#1a1a1a";
+              e.currentTarget.style.color = "#fff";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = "#aaaaaa";
+            }}
+          >
+            {link.label}
+          </Link>
+        ))}
       </aside>
       <main style={{
         flex: 1,
         padding: "32px",
-        backgroundColor: "#ffffff",
+        backgroundColor: "#0a0a0a",
+        overflowY: "auto" as const,
       }}>
         {children}
       </main>
