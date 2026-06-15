@@ -1,7 +1,53 @@
 "use client";
 
-import { useState} from "react";
+import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+
+// ═══════════════════════════════
+// Session ID
+// ═══════════════════════════════
+
+function getSessionId(): string {
+  if (typeof window === 'undefined') return '';
+  let sessionId = sessionStorage.getItem('subul_session_id');
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    sessionStorage.setItem('subul_session_id', sessionId);
+  }
+  return sessionId;
+}
+
+// ═══════════════════════════════
+// Client Event Tracker
+// ═══════════════════════════════
+
+async function trackClientEvent(
+  eventType: string,
+  metadata: Record<string, unknown> = {}
+): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    await fetch('/api/events', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        eventType,
+        metadata,
+        sessionId: getSessionId(),
+      }),
+    });
+  } catch (error) {
+    console.error('Track event error:', error);
+  }
+}
+
+// ═══════════════════════════════
+// الأنواع
+// ═══════════════════════════════
 
 type OnboardingData = {
   location: string;
@@ -47,6 +93,10 @@ type Props = {
   onComplete: () => void;
 };
 
+// ═══════════════════════════════
+// الـ Modal
+// ═══════════════════════════════
+
 export default function OnboardingModal({ userId, onComplete }: Props) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -63,6 +113,7 @@ export default function OnboardingModal({ userId, onComplete }: Props) {
       .from("profiles")
       .update({ onboarding_status: "skipped" })
       .eq("id", userId);
+    await trackClientEvent('onboarding_skipped', { step });
     setLoading(false);
     onComplete();
   };
@@ -80,17 +131,30 @@ export default function OnboardingModal({ userId, onComplete }: Props) {
         experience_level: data.experience_level,
       })
       .eq("id", userId);
+    await trackClientEvent('onboarding_completed', {
+      location: data.location,
+      country: data.current_country || '',
+      goal: data.goal,
+      experience_level: data.experience_level,
+    });
     setLoading(false);
     onComplete();
   };
 
   const canProceed = () => {
-    if (step === 2) return data.location !== "";
-    if (step === 2 && data.location === "outside_syria") return data.current_country !== "";
+    if (step === 2) {
+      if (data.location === '') return false;
+      if (data.location === 'outside_syria' && data.current_country === '') return false;
+      return true;
+    }
     if (step === 3) return data.goal !== "";
     if (step === 4) return data.experience_level !== "";
     return true;
   };
+
+  // ═══════════════════════════════
+  // الأنماط
+  // ═══════════════════════════════
 
   const overlayStyle: React.CSSProperties = {
     position: "fixed",
@@ -112,12 +176,8 @@ export default function OnboardingModal({ userId, onComplete }: Props) {
     maxWidth: "480px",
     padding: "32px",
     direction: "rtl",
-  };
-
-  const progressStyle: React.CSSProperties = {
-    display: "flex",
-    gap: "6px",
-    marginBottom: "28px",
+    maxHeight: "90vh",
+    overflowY: "auto",
   };
 
   const optionStyle = (selected: boolean): React.CSSProperties => ({
@@ -155,33 +215,44 @@ export default function OnboardingModal({ userId, onComplete }: Props) {
     padding: "8px",
   };
 
- return (
-    <div 
-        style={overlayStyle}
-        onClick={handleSkip}
-        onKeyDown={(e) => e.key === 'Escape' && handleSkip()}
-        role="dialog"
-        aria-modal="true"
-        tabIndex={-1}
+  const navRow: React.CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    marginTop: "20px",
+    alignItems: "center",
+  };
+
+  const nextBtnStyle: React.CSSProperties = {
+    ...btnPrimaryStyle,
+    opacity: !canProceed() || loading ? 0.4 : 1,
+    cursor: !canProceed() ? "not-allowed" : "pointer",
+  };
+
+  // ═══════════════════════════════
+  // الـ JSX
+  // ═══════════════════════════════
+
+  return (
+    <div
+      style={overlayStyle}
+      onClick={handleSkip}
+      onKeyDown={(e) => e.key === 'Escape' && handleSkip()}
+      role="dialog"
+      aria-modal="true"
+      tabIndex={-1}
     >
-        <div 
-          style={cardStyle}
-          onClick={(e) => e.stopPropagation()}
-        >
+      <div style={cardStyle} onClick={(e) => e.stopPropagation()}>
 
         {/* Progress */}
-        <div style={progressStyle}>
+        <div style={{ display: "flex", gap: "6px", marginBottom: "28px" }}>
           {[1, 2, 3, 4, 5].map((s) => (
-            <div
-              key={s}
-              style={{
-                flex: 1,
-                height: "3px",
-                borderRadius: "2px",
-                background: s <= step ? "#c9a84c" : "#222222",
-                transition: "background 0.3s",
-              }}
-            />
+            <div key={s} style={{
+              flex: 1,
+              height: "3px",
+              borderRadius: "2px",
+              background: s <= step ? "#c9a84c" : "#222222",
+              transition: "background 0.3s",
+            }} />
           ))}
         </div>
 
@@ -201,7 +272,13 @@ export default function OnboardingModal({ userId, onComplete }: Props) {
               </p>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <button style={btnPrimaryStyle} onClick={() => setStep(2)}>
+              <button
+                style={btnPrimaryStyle}
+                onClick={() => {
+                  trackClientEvent('onboarding_started');
+                  setStep(2);
+                }}
+              >
                 يلا نبدأ ←
               </button>
               <button style={btnSkipStyle} onClick={handleSkip} disabled={loading}>
@@ -220,7 +297,6 @@ export default function OnboardingModal({ userId, onComplete }: Props) {
             <p style={{ color: "#666666", fontSize: "13px", margin: "0 0 20px" }}>
               يساعدنا هذا في تقديم معلومات دقيقة لوضعك
             </p>
-
             <button
               style={optionStyle(data.location === "inside_syria")}
               onClick={() => setData({ ...data, location: "inside_syria", current_country: "" })}
@@ -233,12 +309,9 @@ export default function OnboardingModal({ userId, onComplete }: Props) {
             >
               ✈️ خارج سوريا
             </button>
-
             {data.location === "outside_syria" && (
               <div style={{ marginTop: "12px" }}>
-                <p style={{ color: "#888888", fontSize: "13px", marginBottom: "8px" }}>
-                  في أي دولة؟
-                </p>
+                <p style={{ color: "#888888", fontSize: "13px", marginBottom: "8px" }}>في أي دولة؟</p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                   {COUNTRIES.map((c) => (
                     <button
@@ -252,13 +325,10 @@ export default function OnboardingModal({ userId, onComplete }: Props) {
                 </div>
               </div>
             )}
-
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "20px", alignItems: "center" }}>
-              <button style={btnSkipStyle} onClick={handleSkip} disabled={loading}>
-                تخطي
-              </button>
+            <div style={navRow}>
+              <button style={btnSkipStyle} onClick={handleSkip} disabled={loading}>تخطي</button>
               <button
-                style={{ ...btnPrimaryStyle, opacity: !canProceed() || loading ? 0.4 : 1, cursor: !canProceed() ? "not-allowed" : "pointer" }}
+                style={nextBtnStyle}
                 onClick={() => canProceed() && setStep(3)}
                 disabled={!canProceed() || loading}
               >
@@ -277,7 +347,6 @@ export default function OnboardingModal({ userId, onComplete }: Props) {
             <p style={{ color: "#666666", fontSize: "13px", margin: "0 0 20px" }}>
               اختر الموضوع الأهم بالنسبة لك الآن
             </p>
-
             {GOALS.map((g) => (
               <button
                 key={g.value}
@@ -287,13 +356,10 @@ export default function OnboardingModal({ userId, onComplete }: Props) {
                 {g.label}
               </button>
             ))}
-
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "12px", alignItems: "center" }}>
-              <button style={btnSkipStyle} onClick={handleSkip} disabled={loading}>
-                تخطي
-              </button>
+            <div style={navRow}>
+              <button style={btnSkipStyle} onClick={handleSkip} disabled={loading}>تخطي</button>
               <button
-                style={{ ...btnPrimaryStyle, opacity: !canProceed() || loading ? 0.4 : 1, cursor: !canProceed() ? "not-allowed" : "pointer" }}
+                style={nextBtnStyle}
                 onClick={() => canProceed() && setStep(4)}
                 disabled={!canProceed() || loading}
               >
@@ -312,7 +378,6 @@ export default function OnboardingModal({ userId, onComplete }: Props) {
             <p style={{ color: "#666666", fontSize: "13px", margin: "0 0 20px" }}>
               سنكيّف أسلوب الإجابة حسب مستواك
             </p>
-
             {EXPERIENCE_LEVELS.map((e) => (
               <button
                 key={e.value}
@@ -323,13 +388,10 @@ export default function OnboardingModal({ userId, onComplete }: Props) {
                 <div style={{ fontSize: "12px", opacity: 0.7 }}>{e.desc}</div>
               </button>
             ))}
-
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "12px", alignItems: "center" }}>
-              <button style={btnSkipStyle} onClick={handleSkip} disabled={loading}>
-                تخطي
-              </button>
+            <div style={navRow}>
+              <button style={btnSkipStyle} onClick={handleSkip} disabled={loading}>تخطي</button>
               <button
-                style={{ ...btnPrimaryStyle, opacity: !canProceed() || loading ? 0.4 : 1, cursor: !canProceed() ? "not-allowed" : "pointer" }}
+                style={nextBtnStyle}
                 onClick={() => canProceed() && setStep(5)}
                 disabled={!canProceed() || loading}
               >

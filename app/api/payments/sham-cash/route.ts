@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification, formatShamCashNotification } from '@/lib/telegram';
-
+import { trackEvent } from '@/lib/events';
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -62,13 +62,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       paymentId: payment.id,
     });
 
-    await sendTelegramNotification(message);
+   await sendTelegramNotification(message);
 
-    return NextResponse.json({
-      success: true,
-      paymentId: payment.id,
-      message: 'تم استلام طلبك، سيتم تفعيل اشتراكك خلال 24 ساعة',
-    });
+await trackEvent('payment_initiated', userId, {
+    plan,
+    amount: PLAN_PRICES[plan],
+    payment_method: 'sham_cash',
+    payment_id: payment.id,
+});
+
+return NextResponse.json({
+  success: true,
+  paymentId: payment.id,
+  message: 'تم استلام طلبك، سيتم تفعيل اشتراكك خلال 24 ساعة',
+});
 
   } catch (error) {
     console.error('خطأ عام:', error);

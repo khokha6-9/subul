@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-
+import { trackEvent } from '@/lib/events';
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    await supabase
+   await supabase
       .from('payments')
       .update({
         status: 'approved',
@@ -88,7 +88,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       })
       .eq('id', paymentId);
 
-    return NextResponse.json({ success: true });
+await trackEvent('payment_completed', payment.user_id, {
+    plan: payment.plan,
+    amount: payment.amount_usd,
+    payment_method: 'sham_cash',
+    payment_id: paymentId,
+});
+
+await trackEvent('subscription_activated', payment.user_id, {
+    plan: payment.plan,
+    payment_method: 'sham_cash',
+    expires_at: expiresAt.toISOString(),
+});
+
+return NextResponse.json({ success: true });
 
   } catch (error) {
     console.error('خطأ في قبول الدفعة:', error);

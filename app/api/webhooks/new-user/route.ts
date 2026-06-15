@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { sendWelcomeEmail } from '@/lib/email';
-
+import { trackEvent } from '@/lib/events';
 function safeCompare(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   return timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -47,11 +47,17 @@ export async function POST(request: NextRequest) {
 
     try {
       await sendWelcomeEmail(
-        record.email,
-        record.raw_user_meta_data?.full_name
-      );
-      console.log('Welcome email sent to:', record.email);
-      return NextResponse.json({ success: true });
+    record.email,
+    record.raw_user_meta_data?.full_name
+);
+
+await trackEvent('user_registered', record.id, {
+    email: record.email,
+    provider: record.app_metadata?.provider || 'email',
+});
+
+console.log('Welcome email sent to:', record.email);
+return NextResponse.json({ success: true });
    } catch (emailError: unknown) {
       console.error('Email failed for user:', record.id, emailError);
 

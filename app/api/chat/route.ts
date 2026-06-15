@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { searchKnowledgeBase, buildContextFromResults } from "./search";
-
+import { trackEvent } from '@/lib/events';
 const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
 });
@@ -250,14 +250,33 @@ if (limit !== Infinity) {
             content: reply,
         });
 
-        // خصم رسالة من الرصيد
-        await userSupabase
-            .from("users_credits")
-            .update({
-                credits_remaining: currentCredits - 1,
-                total_used: creditsData.total_used + 1,
-            })
-            .eq("user_id", user.id);
+       // خصم رسالة من الرصيد
+await userSupabase
+    .from("users_credits")
+    .update({
+        credits_remaining: currentCredits - 1,
+        total_used: creditsData.total_used + 1,
+    })
+    .eq("user_id", user.id);
+
+// تسجيل الأحداث
+await trackEvent('question_asked', user.id, {
+    plan: creditsData.plan,
+    credits_remaining: currentCredits - 1,
+    conversation_id: conversationId,
+});
+
+if (!existingConversationId) {
+    await trackEvent('conversation_created', user.id, {
+        conversation_id: conversationId,
+    });
+}
+
+if (currentCredits - 1 === 0) {
+    await trackEvent('credits_depleted', user.id, {
+        plan: creditsData.plan,
+    });
+}
 
         // التغيير الرابع - إرجاع conversationId
         return NextResponse.json({

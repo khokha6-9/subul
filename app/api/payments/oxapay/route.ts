@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
-
+import { trackEvent } from '@/lib/events';
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -89,7 +89,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       })
       .select()
       .single();
-
+await trackEvent('payment_initiated', userId, {
+    plan,
+    amount,
+    payment_method: 'oxapay',
+    track_id: trackId,
+    payment_id: payment?.id,
+});
     await sendTelegramNotification(`
 🔔 <b>طلب دفع جديد — USDT</b>
 
