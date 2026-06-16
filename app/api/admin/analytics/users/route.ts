@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 async function getAdminClient() {
   const cookieStore = await cookies();
