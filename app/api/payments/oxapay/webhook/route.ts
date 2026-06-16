@@ -4,7 +4,7 @@ import { sendTelegramNotification } from '@/lib/telegram';
 import { trackEvent } from '@/lib/events';
 import { sendSubscriptionActivatedEmail } from '@/lib/email';
 import { getPlanInfo, isValidEmail } from '@/lib/plans';
-
+import { sendCriticalAlert } from '@/lib/monitoring';
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -148,11 +148,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ success: true });
 
-  } catch (error) {
+ } catch (error) {
     console.error('خطأ في webhook:', error);
+    await sendCriticalAlert(
+      '/api/webhooks/oxapay',
+      error,
+      { context: 'oxapay_webhook' }
+    );
     return NextResponse.json(
       { error: 'حدث خطأ غير متوقع' },
       { status: 500 }
     );
-  }
+}
 }

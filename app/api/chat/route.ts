@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { searchKnowledgeBase, buildContextFromResults } from "./search";
 import { trackEvent } from '@/lib/events';
+import { sendCriticalAlert } from '@/lib/monitoring';
 const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
 });
@@ -285,11 +286,16 @@ if (currentCredits - 1 === 0) {
             conversationId,
         });
 
-    } catch (error) {
-        console.error("Chat API error:", error);
-        return NextResponse.json(
-            { error: "حدث خطأ في المساعد" },
-            { status: 500 }
-        );
-    }
+   } catch (error) {
+    console.error("Chat API error:", error);
+    await sendCriticalAlert(
+        '/api/chat',
+        error,
+       { context: 'chat_api' }
+    );
+    return NextResponse.json(
+        { error: "حدث خطأ في المساعد" },
+        { status: 500 }
+    );
+}
 }
