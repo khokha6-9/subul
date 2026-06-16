@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { trackEvent } from '@/lib/events';
+import { sendSubscriptionActivatedEmail } from '@/lib/email';
+import { sendTelegramNotification } from '@/lib/telegram';
+import { getPlanInfo, isValidEmail } from '@/lib/plans';
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -46,6 +50,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + 1);
 
+    // تفعيل الاشتراك
     const { error: subError } = await supabase
       .from('subscriptions')
       .upsert({
@@ -64,6 +69,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // تحديث الرصيد
     const { error: creditsError } = await supabase
       .from('users_credits')
       .update({
@@ -80,7 +86,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-   await supabase
+    // تحديث حالة الدفعة
+    await supabase
       .from('payments')
       .update({
         status: 'approved',
@@ -88,20 +95,74 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       })
       .eq('id', paymentId);
 
-await trackEvent('payment_completed', payment.user_id, {
-    plan: payment.plan,
-    amount: payment.amount_usd,
-    payment_method: 'sham_cash',
-    payment_id: paymentId,
-});
+    // تسجيل الأحداث
+    await trackEvent('payment_completed', payment.user_id, {
+      plan: payment.plan,
+      amount: payment.amount_usd,
+      payment_method: 'sham_cash',
+      payment_id: paymentId,
+    });
 
-await trackEvent('subscription_activated', payment.user_id, {
-    plan: payment.plan,
-    payment_method: 'sham_cash',
-    expires_at: expiresAt.toISOString(),
-});
+    await trackEvent('subscription_activated', payment.user_id, {
+      plan: payment.plan,
+      payment_method: 'sham_cash',
+      expires_at: expiresAt.toISOString(),
+    });
 
-return NextResponse.json({ success: true });
+    // إرسال إيميل التفعيل
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('activation_email_sent_at')
+      .eq('user_id', payment.user_id)
+      .single();
+
+    if (!subscription?.activation_email_sent_at) {
+      try {
+        // جلب بيانات المستخدم
+        const { data: userData } = await supabase.auth.admin.getUserById(
+          payment.user_id
+        );
+
+        const userEmail = userData?.user?.email;
+        const userName = userData?.user?.user_metadata?.full_name;
+
+        // التحقق من الإيميل
+        if (!userEmail) {
+          await sendTelegramNotification(
+            `⚠️ تفعيل بدون إيميل\nالمستخدم: ${payment.user_id}\nالخطة: ${payment.plan}`
+          );
+        } else if (!isValidEmail(userEmail)) {
+          await sendTelegramNotification(
+            `⚠️ تنسيق إيميل خاطئ\nالمستخدم: ${payment.user_id}\nالإيميل: ${userEmail}`
+          );
+        } else {
+          const planInfo = getPlanInfo(payment.plan);
+
+         await sendSubscriptionActivatedEmail(
+    userEmail,
+    payment.plan,
+    planInfo?.credits || 100,
+    userName,
+    planInfo?.priceUsd,
+    expiresAt
+);
+
+          // تحديث activation_email_sent_at
+          await supabase
+            .from('subscriptions')
+            .update({ activation_email_sent_at: new Date().toISOString() })
+            .eq('user_id', payment.user_id);
+        }
+      } catch (emailError) {
+        // الإيميل فشل — نُشعر ولا نوقف العملية
+        console.error('Email error:', emailError);
+        await sendTelegramNotification(
+          `🚨 فشل إرسال إيميل تفعيل\nالمستخدم: ${payment.user_id}\nالخطة: ${payment.plan}\nالسبب: ${emailError instanceof Error ? emailError.message : 'خطأ غير معروف'}\n\nاذهب للوحة الأدمن وأعد المحاولة يدوياً`
+        );
+      }
+    }
+
+    return NextResponse.json({ success: true });
 
   } catch (error) {
     console.error('خطأ في قبول الدفعة:', error);

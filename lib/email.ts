@@ -88,7 +88,9 @@ export async function sendSubscriptionActivatedEmail(
   email: string,
   plan: string,
   credits: number,
-  name?: string
+  name?: string,
+  priceUsd?: number,
+  expiresAt?: Date
 ) {
   const displayName = name || 'عزيزي المستخدم';
 
@@ -99,6 +101,14 @@ export async function sendSubscriptionActivatedEmail(
   };
 
   const planName = planNames[plan] || plan;
+
+  const expiryStr = expiresAt
+    ? expiresAt.toLocaleDateString('ar-SA', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : null;
 
   await resend.emails.send({
     from: FROM_EMAIL,
@@ -152,9 +162,21 @@ export async function sendSubscriptionActivatedEmail(
                               <td style="color:#ffffff;font-size:13px;font-weight:bold;text-align:left;padding-bottom:12px;">${planName}</td>
                             </tr>
                             <tr>
-                              <td style="color:#666666;font-size:13px;">الرصيد المتاح</td>
-                              <td style="color:#c9a84c;font-size:13px;font-weight:bold;text-align:left;">${credits} سؤال</td>
+                              <td style="color:#666666;font-size:13px;padding-bottom:12px;">الرصيد المتاح</td>
+                              <td style="color:#c9a84c;font-size:13px;font-weight:bold;text-align:left;padding-bottom:12px;">${credits} سؤال</td>
                             </tr>
+                            ${priceUsd ? `
+                            <tr>
+                              <td style="color:#666666;font-size:13px;padding-bottom:12px;">المبلغ المدفوع</td>
+                              <td style="color:#ffffff;font-size:13px;font-weight:bold;text-align:left;padding-bottom:12px;">${priceUsd}$</td>
+                            </tr>
+                            ` : ''}
+                            ${expiryStr ? `
+                            <tr>
+                              <td style="color:#666666;font-size:13px;">ينتهي في</td>
+                              <td style="color:#ffffff;font-size:13px;font-weight:bold;text-align:left;">${expiryStr}</td>
+                            </tr>
+                            ` : ''}
                           </table>
                         </td>
                       </tr>
