@@ -12,13 +12,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const PLAN_QUESTIONS: Record<string, number> = {
-  starter: 100,
-  plus: 400,
-  pro: 1200,
-};
-
-// التحقق من صحة HMAC بأمان (مقاوم لـ timing attacks)
 function verifyHmacSignature(rawBody: string, receivedHmac: string | null): boolean {
   if (!receivedHmac) return false;
 
@@ -44,18 +37,26 @@ function verifyHmacSignature(rawBody: string, receivedHmac: string | null): bool
   }
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
-  // مرجع للدفعة المقفولة — يُستخدم في catch الخارجي لإصلاح M1
-  let lockedPaymentId: string | null = null;
+type ActivationResult = {
+  result: string;
+  payment_id?: string;
+  user_id?: string;
+  plan?: string;
+  credits?: number;
+  amount_usd?: number;
+  expires_at?: string;
+  paid_currency?: string;
+  paid_amount?: number;
+  expected_amount?: number;
+};
 
+export async function POST(request: NextRequest): Promise<NextResponse> {
   // ١. قراءة raw body أولاً — ضروري لحساب HMAC بدقة
   const rawBody = await request.text();
   const receivedHmac = request.headers.get('hmac');
 
-  // ٢. التحقق من التوقيع قبل أي معالجة أخرى — فئة 1، رفض فوري
-  const isValidSignature = verifyHmacSignature(rawBody, receivedHmac);
-
-  if (!isValidSignature) {
+  // ٢. التحقق من التوقيع قبل أي معالجة أخرى
+  if (!verifyHmacSignature(rawBody, receivedHmac)) {
     console.warn('OxaPay webhook: توقيع HMAC غير صالح');
     await sendCriticalAlert(
       'oxapay_invalid_signature',
@@ -95,174 +96,156 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ success: true });
     }
 
-    // ٤. Atomic Update لمنع Race Condition
-    const { data: lockedPayment, error: lockError } = await supabase
-      .from('payments')
-      .update({ status: 'processing' })
-      .eq('transaction_id', String(trackId))
-      .eq('status', 'pending')
-      .select()
-      .single();
+    // ٤. بناء خريطة الأرصدة من lib/plans.ts — مصدر الحقيقة الوحيد
+    const planCredits = {
+      starter: getPlanInfo('starter')?.credits ?? null,
+      plus: getPlanInfo('plus')?.credits ?? null,
+      pro: getPlanInfo('pro')?.credits ?? null,
+    };
 
-    if (lockError || !lockedPayment) {
-      const { data: existingPayment } = await supabase
-        .from('payments')
-        .select('id, status')
-        .eq('transaction_id', String(trackId))
-        .single();
+    // ٥. استدعاء الدالة الذرّية — كل المنطق المالي داخل معاملة واحدة
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
+      'activate_oxapay_payment',
+      {
+        p_track_id: String(trackId),
+        p_paid_amount: Number(body.amount),
+        p_paid_currency: String(body.currency || ''),
+        p_plan_credits: planCredits,
+      }
+    );
 
-      if (!existingPayment) {
+    if (rpcError) {
+      // خطأ نقل/قاعدة بيانات عابر — ندع OxaPay يعيد المحاولة
+      console.error('RPC error:', rpcError);
+      await sendCriticalAlert(
+        'oxapay_rpc_error',
+        rpcError,
+        { track_id: trackId }
+      );
+      return NextResponse.json({ error: 'rpc failed' }, { status: 500 });
+    }
+
+    const activation = rpcData as ActivationResult;
+
+    // ٦. التعامل مع نتيجة الدالة حسب جدول القرارات المعتمد
+    switch (activation.result) {
+
+      case 'already_processed':
+        // متوقّع من إعادة محاولات OxaPay — لا حاجة لأي إشعار
+        return NextResponse.json({ success: true });
+
+      case 'not_found':
+        // مؤكَّد أنه لنا (مرّ HMAC) لكن الصف مفقود — تنبيه حرج واحد، لا إعادة محاولة
         await sendCriticalAlert(
           'oxapay_payment_not_found',
-          new Error(`دفعة مؤكدة من OxaPay غير موجودة في قاعدتنا`),
+          new Error('دفعة مؤكَّدة من OxaPay غير موجودة في قاعدتنا'),
           { track_id: trackId }
         );
-        return NextResponse.json({ error: 'الدفعة غير موجودة' }, { status: 404 });
-      }
+        return NextResponse.json({ success: true });
 
-      return NextResponse.json({ success: true });
+      case 'currency_mismatch':
+        await sendCriticalAlert(
+          'oxapay_unexpected_currency',
+          new Error('عملة غير متوقعة في webhook'),
+          {
+            payment_id: activation.payment_id,
+            track_id: trackId,
+            currency: activation.paid_currency,
+          }
+        );
+        return NextResponse.json({ success: true });
+
+      case 'amount_mismatch':
+        await sendCriticalAlert(
+          'oxapay_amount_mismatch',
+          new Error('المبلغ المستلم لا يطابق المتوقع'),
+          {
+            payment_id: activation.payment_id,
+            track_id: trackId,
+            paid_amount: activation.paid_amount,
+            expected_amount: activation.expected_amount,
+          }
+        );
+        return NextResponse.json({ success: true });
+
+      case 'invalid_expected_amount':
+        await sendCriticalAlert(
+          'oxapay_invalid_expected_amount',
+          new Error('المبلغ المتوقع للدفعة غير صالح أو صفري'),
+          { payment_id: activation.payment_id, track_id: trackId }
+        );
+        return NextResponse.json({ success: true });
+
+      case 'unknown_plan':
+        await sendCriticalAlert(
+          'oxapay_unknown_plan',
+          new Error('خطة غير معروفة في خريطة الأرصدة'),
+          { payment_id: activation.payment_id, track_id: trackId, plan: activation.plan }
+        );
+        return NextResponse.json({ success: true });
+
+      case 'activated':
+        // نجاح — نكمل بالتأثيرات الجانبية (الإيميل وتيليجرام)
+        break;
+
+      default:
+        // نتيجة غير متوقعة من الدالة — لا يجب أن يحدث، لكن نتعامل بأمان
+        await sendCriticalAlert(
+          'oxapay_unknown_rpc_result',
+          new Error(`نتيجة غير معروفة من الدالة: ${activation.result}`),
+          { track_id: trackId }
+        );
+        return NextResponse.json({ success: true });
     }
 
-    const payment = lockedPayment;
-    // تسجيل مرجع الدفعة المقفولة — يُستخدم لاحقاً في catch الخارجي إن حدث استثناء
-    lockedPaymentId = payment.id;
-const expectedAmount = Number(payment.amount_usd);
+    // ٧. التأثيرات الجانبية — تُنفَّذ فقط بعد نجاح التفعيل الفعلي
+    const userId = activation.user_id!;
+    const plan = activation.plan!;
+    const credits = activation.credits!;
+    const paymentId = activation.payment_id!;
+    const expiresAt = new Date(activation.expires_at!);
 
-    if (isNaN(expectedAmount) || expectedAmount <= 0) {
-      await sendCriticalAlert(
-        'oxapay_invalid_expected_amount',
-        new Error('المبلغ المتوقع للدفعة غير صالح أو صفري'),
-        { payment_id: payment.id, track_id: trackId, stored_amount: payment.amount_usd }
-      );
-      await supabase.from('payments').update({ status: 'pending' }).eq('id', payment.id);
-      return NextResponse.json({ error: 'invalid expected amount' }, { status: 400 });
-    }
-
-    const paidCurrency = String(body.currency || '').toUpperCase();
-    if (paidCurrency !== 'USDT') {
-      await sendCriticalAlert(
-        'oxapay_unexpected_currency',
-        new Error('عملة غير متوقعة في webhook'),
-        { payment_id: payment.id, track_id: trackId, currency: paidCurrency }
-      );
-      await supabase.from('payments').update({ status: 'pending' }).eq('id', payment.id);
-      return NextResponse.json({ error: 'unexpected currency' }, { status: 400 });
-    }
-
-    const paidAmount = Number(body.amount);
-    const ALLOWED_DIFFERENCE = 0.01;
-
-    if (isNaN(paidAmount) || paidAmount + ALLOWED_DIFFERENCE < expectedAmount) {
-      await sendCriticalAlert(
-        'oxapay_amount_mismatch',
-        new Error('المبلغ المستلم أقل من المتوقع'),
-        {
-          payment_id: payment.id,
-          track_id: trackId,
-          paid_amount: paidAmount,
-          expected_amount: expectedAmount,
-        }
-      );
-      await supabase.from('payments').update({ status: 'pending' }).eq('id', payment.id);
-      return NextResponse.json({ error: 'amount mismatch' }, { status: 400 });
-    }
-    const expiresAt = new Date();
-    expiresAt.setMonth(expiresAt.getMonth() + 1);
-
-    // ٥. تفعيل الاشتراك
-    const { error: subError } = await supabase
-      .from('subscriptions')
-      .upsert({
-        user_id: payment.user_id,
-        plan: payment.plan,
-        status: 'active',
-        started_at: new Date().toISOString(),
-        expires_at: expiresAt.toISOString(),
-        payment_method: 'oxapay',
-      }, { onConflict: 'user_id' });
-
-    if (subError) {
-      await sendCriticalAlert(
-        'oxapay_subscription_activation_failed',
-        subError,
-        { payment_id: payment.id, track_id: trackId, user_id: payment.user_id }
-      );
-      await supabase.from('payments').update({ status: 'pending' }).eq('id', payment.id);
-      return NextResponse.json({ error: 'فشل تفعيل الاشتراك' }, { status: 500 });
-    }
-
-    // ٦. تحديث الرصيد
-    const { error: creditsError } = await supabase
-      .from('users_credits')
-      .update({
-        plan: payment.plan,
-        credits_remaining: PLAN_QUESTIONS[payment.plan] || 100,
-        is_plus: payment.plan !== 'starter',
-      })
-      .eq('user_id', payment.user_id);
-
-    if (creditsError) {
-      await sendCriticalAlert(
-        'oxapay_credits_update_failed_inconsistent_state',
-        creditsError,
-        {
-          payment_id: payment.id,
-          user_id: payment.user_id,
-          note: 'الاشتراك مفعّل لكن الرصيد لم يُحدَّث — يحتاج تدخل يدوي فوري',
-        }
-      );
-    }
-
-    // ٧. تأكيد حالة الدفعة النهائية
-    await supabase
-      .from('payments')
-      .update({
-        status: 'approved',
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq('id', payment.id);
-
-    // ٨. تسجيل الأحداث
-    await trackEvent('payment_completed', payment.user_id, {
-      plan: payment.plan,
-      amount: payment.amount_usd,
+    // تسجيل الأحداث
+    await trackEvent('payment_completed', userId, {
+      plan,
+      amount: activation.amount_usd,
       payment_method: 'oxapay',
       track_id: trackId,
     });
 
-    await trackEvent('subscription_activated', payment.user_id, {
-      plan: payment.plan,
+    await trackEvent('subscription_activated', userId, {
+      plan,
       payment_method: 'oxapay',
-      expires_at: expiresAt.toISOString(),
+      expires_at: activation.expires_at,
     });
 
-    // ٩. إيميل التفعيل مع Idempotency
+    // إيميل التفعيل مع Idempotency (نفس منطق سابق، يبقى كما هو خارج الدالة لأنه يتعامل مع Resend وليس DB)
     const { data: subscription } = await supabase
       .from('subscriptions')
       .select('activation_email_sent_at')
-      .eq('user_id', payment.user_id)
+      .eq('user_id', userId)
       .single();
 
     if (!subscription?.activation_email_sent_at) {
       try {
-        const { data: userData } = await supabase.auth.admin.getUserById(payment.user_id);
+        const { data: userData } = await supabase.auth.admin.getUserById(userId);
         const userEmail = userData?.user?.email;
         const userName = userData?.user?.user_metadata?.full_name;
 
         if (!userEmail) {
           await sendTelegramNotification(
-            `⚠️ تفعيل OxaPay بدون إيميل\nالمستخدم: ${payment.user_id}\nالخطة: ${payment.plan}`
+            `⚠️ تفعيل OxaPay بدون إيميل\nالمستخدم: ${userId}\nالخطة: ${plan}`
           );
         } else if (!isValidEmail(userEmail)) {
           await sendTelegramNotification(
-            `⚠️ تنسيق إيميل خاطئ — OxaPay\nالمستخدم: ${payment.user_id}\nالإيميل: ${userEmail}`
+            `⚠️ تنسيق إيميل خاطئ — OxaPay\nالمستخدم: ${userId}\nالإيميل: ${userEmail}`
           );
         } else {
-          const planInfo = getPlanInfo(payment.plan);
+          const planInfo = getPlanInfo(plan);
           await sendSubscriptionActivatedEmail(
             userEmail,
-            payment.plan,
-            planInfo?.credits || 100,
+            plan,
+            credits,
             userName,
             planInfo?.priceUsd,
             expiresAt
@@ -270,12 +253,12 @@ const expectedAmount = Number(payment.amount_usd);
           await supabase
             .from('subscriptions')
             .update({ activation_email_sent_at: new Date().toISOString() })
-            .eq('user_id', payment.user_id);
+            .eq('user_id', userId);
         }
       } catch (emailError) {
         console.error('Email error:', emailError);
         await sendTelegramNotification(
-          `🚨 فشل إرسال إيميل تفعيل — OxaPay\nالمستخدم: ${payment.user_id}\nالخطة: ${payment.plan}\nالسبب: ${emailError instanceof Error ? emailError.message : 'خطأ غير معروف'}\n\nاذهب للوحة الأدمن وأعد المحاولة يدوياً`
+          `🚨 فشل إرسال إيميل تفعيل — OxaPay\nالمستخدم: ${userId}\nالخطة: ${plan}\nالسبب: ${emailError instanceof Error ? emailError.message : 'خطأ غير معروف'}\n\nاذهب للوحة الأدمن وأعد المحاولة يدوياً`
         );
       }
     }
@@ -283,26 +266,17 @@ const expectedAmount = Number(payment.amount_usd);
     await sendTelegramNotification(`
 ✅ <b>دفع مكتمل — USDT</b>
 
-📦 <b>الخطة:</b> ${payment.plan}
-💵 <b>المبلغ:</b> ${payment.amount_usd}$
+📦 <b>الخطة:</b> ${plan}
+💵 <b>المبلغ:</b> ${activation.amount_usd}$
 🆔 <b>رقم التتبع:</b> ${trackId}
-⚡ تم تفعيل الاشتراك تلقائياً
+⚡ تم تفعيل الاشتراك تلقائياً عبر RPC ذرّي
     `.trim());
 
     return NextResponse.json({ success: true });
 
   } catch (error) {
+    // خطأ غير متوقع تماماً (مثل فشل الاتصال بـ Supabase نفسه قبل استدعاء RPC)
     console.error('خطأ في webhook:', error);
-
-    // إصلاح M1: إعادة الدفعة من processing إلى pending إن كانت عالقة بسبب استثناء غير متوقع
-    if (lockedPaymentId) {
-      await supabase
-        .from('payments')
-        .update({ status: 'pending' })
-        .eq('id', lockedPaymentId)
-        .eq('status', 'processing');
-    }
-
     await sendCriticalAlert(
       '/api/webhooks/oxapay',
       error,
